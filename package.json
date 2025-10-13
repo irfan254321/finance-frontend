@@ -3,21 +3,41 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.3"
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@headlessui/react": "^2.2.8",
+    "@heroui/dropdown": "^2.3.26",
+    "@heroui/system": "^2.4.22",
+    "@heroui/theme": "^2.4.22",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2",
+    "@mui/x-charts": "^8.11.3",
+    "@radix-ui/themes": "^3.2.1",
+    "axios": "^1.12.2",
+    "chart.js": "^4.5.0",
+    "chartjs": "^0.3.24",
+    "dotenv": "^17.2.2",
+    "framer-motion": "^12.23.22",
+    "js-cookie": "^3.0.5",
+    "lightningcss": "^1.30.2",
+    "next": "^14.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^3.2.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
