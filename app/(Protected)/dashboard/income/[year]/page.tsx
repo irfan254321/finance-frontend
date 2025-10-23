@@ -1,8 +1,8 @@
 "use client"
 
-import NavbarLogin from "../../../../components/navbarLogin"
-import Footer from "../../../../components/footer"
-import { useEffect, useState } from "react"
+
+import Footer from "../../../../../components/footer"
+import { useEffect, useMemo, useState } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import { useParams } from "next/navigation"
 import { BarChart } from "@mui/x-charts"
@@ -26,27 +26,34 @@ interface income {
 
 export default function IncomeLogin() {
   const params = useParams()
-  const year = params.year
+  const year = params.year as string
   const [data, setData] = useState<income[]>([])
   const [dataMonth, setDataMonth] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [chartSize, setChartSize] = useState({ width: 1500, height: 480 })
 
+  // 🆕 Total tahunan
+  const [totalYear, setTotalYear] = useState<number>(0)
+
+  // 🆕 Zoom Bulan (Opsi A)
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
+
   // 📏 Resize otomatis
   useEffect(() => {
     const handleResize = () => {
       const screenWidth = window.innerWidth
-      const width = Math.min(screenWidth * 0.85, 1400)
-      const height = Math.max(400, width * 0.4)
+      const baseWidth = Math.min(screenWidth * 0.85, 1400)
+      const width = selectedMonth ? Math.min(screenWidth * 0.9, 1600) : baseWidth
+      const height = selectedMonth ? Math.max(520, width * 0.45) : Math.max(400, baseWidth * 0.4)
       setChartSize({ width, height })
     }
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  }, [selectedMonth])
 
-  // 🔹 Klik bar chart
+  // 🔹 Klik bar chart (tetap seperti semula)
   const handleBarClick = (_: any, item: any) => {
     const monthIndex = item.dataIndex
     const categoryKey = item.seriesId ?? item.seriesLabel ?? item.dataKey
@@ -74,7 +81,7 @@ export default function IncomeLogin() {
     setSelectedItem(null)
   }
 
-  // 🔹 Ambil data API
+  // 🔹 Ambil data API (tetap, + hitung total tahunan)
   useEffect(() => {
     if (!year) return
 
@@ -88,7 +95,10 @@ export default function IncomeLogin() {
     const monthly: Record<string, any> = {}
 
     axiosInstance.get<income[]>(`/api/income/${year}`).then((res) => {
+      let total = 0
+
       res.data.forEach((d) => {
+        total += d.amount_income
         const m = new Date(d.date_income).getMonth() + 1
         const key = map[d.category_id]
         if (!monthly[m]) {
@@ -100,14 +110,21 @@ export default function IncomeLogin() {
       const sorted = Object.entries(monthly)
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([num, val]) => ({
-          month: new Date(2024, Number(num) - 1).toLocaleString("id-ID", { month: "short" }),
+          month: new Date(Number(year) || 2024, Number(num) - 1).toLocaleString("id-ID", { month: "short" }),
           ...val,
         }))
 
+      setTotalYear(total) // 🆕 total tahunan
       setData(res.data)
       setDataMonth(sorted)
     })
   }, [year])
+
+  // 🆕 Dataset yang ditampilkan (zoom bulan vs semua bulan)
+  const displayedData = useMemo(() => {
+    if (!selectedMonth) return dataMonth
+    return dataMonth.filter((m) => m.month === selectedMonth)
+  }, [dataMonth, selectedMonth])
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#1a2732] via-[#2C3E50] to-[#1a2732] text-white overflow-hidden">
@@ -119,45 +136,80 @@ export default function IncomeLogin() {
             <br /> Rumah Sakit Bhayangkara M. Hasan Palembang {year}
           </h1>
 
+          {/* 🆕 Total tahunan */}
+          <p className="text-2xl font-bold text-[#F4E1C1] mb-6">
+            💰 Total Pendapatan Tahun {year}:{" "}
+            <span className="text-yellow-400 ml-2">Rp {totalYear.toLocaleString("id-ID")}</span>
+          </p>
+
           {dataMonth.length === 0 ? (
             <p className="py-10 text-gray-300 animate-pulse">Memuat data...</p>
           ) : (
-            <div className="flex justify-center w-full px-4">
-              <BarChart
-                dataset={dataMonth}
-                xAxis={[{ dataKey: "month", scaleType: "band" }]}
-                yAxis={[{ position: "none" }]}
-                series={[
-                  { id: "klaimBPJS", dataKey: "klaimBPJS", label: "Klaim BPJS", color: "#4FC3F7" },
-                  { id: "pasienUmum", dataKey: "pasienUmum", label: "Pasien Umum", color: "#FFD54F" },
-                  { id: "bungaDeposito", dataKey: "bungaDeposito", label: "Bunga Deposito", color: "#BA68C8" },
-                  { id: "kerjaSamaSewa", dataKey: "kerjaSamaSewa", label: "Kerja Sama & Sewa", color: "#81C784" },
-                ]}
-                onItemClick={handleBarClick}
-                width={chartSize.width}
-                height={chartSize.height}
-                margin={{ bottom: 90, top: 30 }}
-                grid={{ vertical: true, horizontal: true }}
-                sx={{
-                  "& .MuiChartsLegend-root": {
-                    marginTop: "30px",
-                  },
-                  "& .MuiChartsLegend-label": {
-                    fill: "#F4E1C1",
-                    fontSize: "20px",
-                    color : "#FFD700",
-                    fontWeight: 600,
-                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                  },
-                  "& .MuiChartsLegend-mark": {
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "4px",
-                    transform: "translateY(2px)",
-                  },
-                }}
-              />
+            <div className="flex flex-col items-center w-full px-4">
+              {/* 🆕 Strip bulan yang bisa diklik untuk Zoom */}
+              <div className="flex flex-wrap justify-center gap-3 mb-6">
+                {dataMonth.map((m: any) => (
+                  <button
+                    key={m.month}
+                    onClick={() => setSelectedMonth(m.month)}
+                    className={`px-3 py-1 rounded-full border text-sm transition ${
+                      selectedMonth === m.month
+                        ? "bg-yellow-500/20 border-yellow-400 text-yellow-300"
+                        : "bg-[#2C3E50]/60 border-[#F4E1C1]/20 text-[#F4E1C1]/90 hover:bg-[#34495E]/70"
+                    }`}
+                    title={`Fokuskan ke bulan ${m.month}`}
+                  >
+                    {m.month}
+                  </button>
+                ))}
+              </div>
 
+              {/* Tombol kembali ke semua bulan */}
+              {selectedMonth && (
+                <button
+                  onClick={() => setSelectedMonth(null)}
+                  className="mb-4 px-4 py-2 rounded-lg bg-[#34495E] hover:bg-[#2C3E50] border border-[#F4E1C1]/20 text-[#F4E1C1] transition"
+                >
+                  🔙 Tampilkan Semua Bulan
+                </button>
+              )}
+
+              <div className="flex justify-center w-full">
+                <BarChart
+                  dataset={displayedData}
+                  xAxis={[{ dataKey: "month", scaleType: "band" }]}
+                  yAxis={[{ position: "none" }]}
+                  series={[
+                    { id: "klaimBPJS", dataKey: "klaimBPJS", label: "Klaim BPJS", color: "#4FC3F7" },
+                    { id: "pasienUmum", dataKey: "pasienUmum", label: "Pasien Umum", color: "#FFD54F" },
+                    { id: "bungaDeposito", dataKey: "bungaDeposito", label: "Bunga Deposito", color: "#BA68C8" },
+                    { id: "kerjaSamaSewa", dataKey: "kerjaSamaSewa", label: "Kerja Sama & Sewa", color: "#81C784" },
+                  ]}
+                  onItemClick={handleBarClick}
+                  width={chartSize.width}
+                  height={chartSize.height}
+                  margin={{ bottom: 90, top: 30 }}
+                  grid={{ vertical: true, horizontal: true }}
+                  sx={{
+                    "& .MuiChartsLegend-root": {
+                      marginTop: "30px",
+                    },
+                    "& .MuiChartsLegend-label": {
+                      fill: "#F4E1C1",
+                      fontSize: "20px",
+                      color: "#FFD700",
+                      fontWeight: 600,
+                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                    },
+                    "& .MuiChartsLegend-mark": {
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "4px",
+                      transform: "translateY(2px)",
+                    },
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -174,7 +226,7 @@ export default function IncomeLogin() {
             "& .MuiPaper-root": {
               width: "85vw",
               maxWidth: "1600px",
-              height: "auto", // biar fleksibel tinggi tergantung konten
+              height: "auto",
               maxHeight: "90vh",
               borderRadius: "28px",
               background: "rgba(25, 30, 40, 0.95)",
@@ -182,7 +234,7 @@ export default function IncomeLogin() {
               boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
               color: "white",
               paddingBottom: "2rem",
-              overflow: "visible", // 💡 no scroll
+              overflow: "visible",
             },
           }}
         >

@@ -1,35 +1,28 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Cookies from "js-cookie"
+import { useAuth } from "@/context/AuthContext"
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
   const router = useRouter()
-  const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
-    // 🔍 cek dari cookies atau localStorage
-    const token = Cookies.get("token") || localStorage.getItem("token")
-
-    console.log("✅ Token terdeteksi:", token)
-
-    if (!token) {
-      // kalau kosong, redirect ke login
-      router.replace("/login")
-    } else {
-      // kalau ada token, lanjutkan render
-      setIsChecking(false)
+    if (!loading && !user) {
+      router.push("/login")
     }
-  }, [router])
+  }, [loading, user, router])
 
-  if (isChecking) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400 text-lg">
+      <div className="flex items-center justify-center h-screen text-white text-2xl">
         Checking session...
       </div>
     )
   }
+
+  if (!user) return null
 
   return <>{children}</>
 }

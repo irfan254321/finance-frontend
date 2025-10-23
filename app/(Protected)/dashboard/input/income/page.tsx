@@ -36,6 +36,7 @@ import * as XLSX from "xlsx"
 export default function InputIncomePage() {
     const [tab, setTab] = useState(0)
     const [loading, setLoading] = useState(false)
+    const [uploading, setUploading] = useState(false) // ✅ loading khusus upload Excel (overlay)
     const [file, setFile] = useState<File | null>(null)
     const [previewData, setPreviewData] = useState<any[]>([])
 
@@ -155,7 +156,7 @@ export default function InputIncomePage() {
         }
 
         try {
-            setLoading(true)
+            setUploading(true) // ✅ mulai overlay loading
             const formData = new FormData()
             formData.append("file", file)
 
@@ -169,8 +170,14 @@ export default function InputIncomePage() {
                     message: `✅ ${res.data.inserted} baris berhasil diimport!`,
                     severity: "success",
                 })
+                // reset state agar input file bisa dipakai ulang
                 setFile(null)
                 setPreviewData([])
+
+                // ⏱️ beri jeda kecil untuk UX lalu refresh full halaman
+                setTimeout(() => {
+                    window.location.reload()
+                }, 1200)
             }
         } catch (err) {
             console.error(err)
@@ -180,7 +187,8 @@ export default function InputIncomePage() {
                 severity: "error",
             })
         } finally {
-            setLoading(false)
+            // biarkan overlay tertutup oleh reload; jika gagal tetap matikan overlay
+            setUploading(false)
         }
     }
 
@@ -389,10 +397,21 @@ export default function InputIncomePage() {
                         </Paper>
                     )}
 
-                    <Button onClick={handleUploadExcel} variant="contained" disabled={loading || previewData.length === 0}>
-                        {loading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel"}
+                    <Button onClick={handleUploadExcel} variant="contained" disabled={uploading || previewData.length === 0}>
+                        {uploading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel"}
                     </Button>
                 </motion.div>
+            )}
+
+            {/* === OVERLAY LOADING (FULL SCREEN, SEMI-TRANSPARAN + BLUR) === */}
+            {uploading && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-white/60 shadow-xl border border-white/40">
+                        <CircularProgress size={44} />
+                        <p className="text-lg font-medium text-[#2C3E50]">Mengimpor data Excel…</p>
+                        <p className="text-sm text-[#2C3E50]/70">Tunggu sebentar ya (±1 detik)…</p>
+                    </div>
+                </div>
             )}
 
             {/* ALERT */}

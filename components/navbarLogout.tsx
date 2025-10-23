@@ -29,14 +29,6 @@ export default function NavbarLogout() {
         >
           Login
         </button>
-
-        {/* 📝 REGISTER */}
-        <button
-          onClick={() => router.push("/register")}
-          className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110"
-        >
-          Register
-        </button>
       </div>
     </nav>
   )

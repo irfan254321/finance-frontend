@@ -1,7 +1,6 @@
 "use client"
 
-import NavbarLogin from "../../../../components/navbarLogin"
-import Footer from "../../../../components/footer"
+import Footer from "../../../../../components/footer"
 import { useEffect, useState } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import { useParams } from "next/navigation"

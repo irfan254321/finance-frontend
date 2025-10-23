@@ -57,6 +57,9 @@ export default function InputSpendingPage() {
     const [file, setFile] = useState<File | null>(null)
     const [previewData, setPreviewData] = useState<any[]>([])
 
+    // ✅ Tambahan: selector jenis upload (Umum / Obat) untuk Tab Import Excel (1 tombol)
+    const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
+
     // ===== FORM SPENDING =====
     const [form, setForm] = useState({
         name_spending: "",
@@ -91,6 +94,8 @@ export default function InputSpendingPage() {
         { name_medicine: "", quantity: "", name_unit_id: "", price: "" },
     ])
 
+
+
     // Total harga obat (jumlahkan price tiap baris; kosong dianggap 0)
     const totalObat = useMemo(() => {
         return medicines.reduce((sum, r) => {
@@ -106,6 +111,9 @@ export default function InputSpendingPage() {
         severity: "success" as "success" | "error" | "info",
     })
 
+    // ✅ Tambahan: loading overlay khusus upload Excel
+    const [uploading, setUploading] = useState(false)
+
     // ===== FETCHERS =====
     const getCategories = async () => {
         try {
@@ -117,10 +125,14 @@ export default function InputSpendingPage() {
         }
     }
 
-    const getCompanies = async () => {
+    const [search, setSearch] = useState("")
+    const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
+    const getCompanies = async (searchText?: string) => {
         try {
             setCompanyLoading(true)
-            const res = await axiosInstance.get("/api/inputCompanyMedicine")
+            const res = await axiosInstance.get("/api/inputCompanyMedicine", {
+                params: { search: searchText ?? search }
+            })
             setCompanies(res.data)
         } catch (err) {
             console.error("Gagal mengambil company medicine:", err)
@@ -129,6 +141,24 @@ export default function InputSpendingPage() {
             setCompanyLoading(false)
         }
     }
+
+    useEffect(() => {
+        if (search.length < 3) {
+            // kalau < 3 huruf, reset data (tampilkan semua)
+            getCompanies("")
+            return
+        }
+
+        if (typingTimeout) clearTimeout(typingTimeout)
+
+        const timeout = setTimeout(() => {
+            getCompanies(search)
+        }, 400) // debounce 400ms
+
+        setTypingTimeout(timeout)
+
+        return () => clearTimeout(timeout)
+    }, [search])
 
     const getUnits = async () => {
         try {
@@ -305,18 +335,19 @@ export default function InputSpendingPage() {
             const sheet = workbook.SheetNames[0]
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheet])
 
-            // ✅ Validasi kolom wajib
-            const requiredCols = [
+            // ✅ Validasi kolom wajib — tergantung JENIS UPLOAD
+            const requiredColsUmum = ["name_spending", "category_id", "date_spending", "amount_spending"]
+            const requiredColsObat = [
                 "name_spending",
                 "category_id",
                 "date_spending",
                 "company_id",
-                "amount_spending",
                 "name_medicine",
                 "quantity",
                 "unit_id",
                 "price_per_item",
             ]
+            const requiredCols = jenisUpload === "umum" ? requiredColsUmum : requiredColsObat
 
             const missingCols = requiredCols.filter((col) => !Object.keys(rawData[0] || {}).includes(col))
             if (missingCols.length > 0) {
@@ -331,116 +362,120 @@ export default function InputSpendingPage() {
             }
 
             // ✅ Normalisasi data angka & tanggal biar preview lebih rapi
-            const normalized = rawData.map((row: any) => ({
-                name_spending: row.name_spending || "",
-                category_id: Number(row.category_id || 0),
-                date_spending: row.date_spending || "",
-                company_id: row.company_id ? Number(row.company_id) : "",
-                amount_spending: row.amount_spending ? Number(row.amount_spending) : "",
-                name_medicine: row.name_medicine || "",
-                quantity: row.quantity ? Number(row.quantity) : "",
-                unit_id: row.unit_id ? Number(row.unit_id) : "",
-                price_per_item: row.price_per_item ? Number(row.price_per_item) : "",
-            }))
+            const normalized = rawData.map((row: any) => {
+                const base: any = {
+                    name_spending: row.name_spending || "",
+                    category_id: Number(row.category_id || 0),
+                    date_spending: row.date_spending || "",
+                }
+                if (jenisUpload === "umum") {
+                    base.amount_spending = row.amount_spending ? Number(row.amount_spending) : ""
+                    return base
+                } else {
+                    base.company_id = row.company_id ? Number(row.company_id) : ""
+                    base.name_medicine = row.name_medicine || ""
+                    base.quantity = row.quantity ? Number(row.quantity) : ""
+                    base.unit_id = row.unit_id ? Number(row.unit_id) : ""
+                    base.price_per_item = row.price_per_item ? Number(row.price_per_item) : ""
+                    return base
+                }
+            })
 
             setPreviewData(normalized)
         }
         reader.readAsBinaryString(f)
     }
 
-
     const handleUploadExcel = async () => {
-        if (!file) {
-            setAlert({ open: true, message: "📂 Pilih file Excel terlebih dahulu!", severity: "error" })
-            return
-        }
-
-        if (previewData.length === 0) {
-            setAlert({ open: true, message: "📊 Tidak ada data yang akan diupload!", severity: "error" })
-            return
-        }
+        if (!file) return setAlert({ open: true, message: "📂 Pilih file Excel!", severity: "error" })
 
         try {
-            setLoading(true)
+            setUploading(true) // ✅ Overlay on
             const formData = new FormData()
             formData.append("file", file)
 
-            const res = await axiosInstance.post("/api/uploadSpendingExcel", formData, {
+            const url = jenisUpload === "umum"
+                ? "/api/uploadSpendingExcelGeneral"
+                : "/api/uploadSpendingExcelObat"
+
+            const res = await axiosInstance.post(url, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             })
 
             if (res.status === 200) {
                 setAlert({
                     open: true,
-                    message: `✅ ${res.data.inserted_spending} transaksi dan ${res.data.inserted_medicines} detail obat berhasil diimport!`,
+                    message: res.data.message || "✅ Import Excel berhasil!",
                     severity: "success",
                 })
+                // Reset agar bisa pilih file lagi
                 setFile(null)
                 setPreviewData([])
+
+                // ⏱️ Jeda UX kecil lalu reload full page
+                setTimeout(() => {
+                    window.location.reload()
+                }, 1200)
             }
         } catch (err: any) {
             console.error(err)
             setAlert({
                 open: true,
-                message: "❌ Gagal upload file! Periksa format Excel dan data yang dimasukkan.",
+                message: err?.response?.data || "❌ Gagal upload file! Pastikan format Excel sesuai.",
                 severity: "error",
             })
         } finally {
-            setLoading(false)
+            setUploading(false) // kalau gagal, overlay dimatikan
         }
     }
 
 
-    // ===== DOWNLOAD TEMPLATE EXCEL (SYNC DARI CATEGORY DB) =====
+    // ===== DOWNLOAD TEMPLATE EXCEL (sinkron dgn jenisUpload) =====
     const handleDownloadTemplate = () => {
-        const rows = [
-            {
-                name_spending: "Belanja Obat Januari",
-                category_id: 9,
-                date_spending: "2025-01-01",
-                company_id: 1,
-                amount_spending: "",
-                name_medicine: "Paracetamol",
-                quantity: 200,
-                unit_id: 1,
-                price_per_item: 2000,
-            },
-            {
-                name_spending: "Belanja Obat Januari",
-                category_id: 9,
-                date_spending: "2025-01-01",
-                company_id: 1,
-                amount_spending: "",
-                name_medicine: "Asam Mefenamat",
-                quantity: 150,
-                unit_id: 2,
-                price_per_item: 3000,
-            },
-            {
-                name_spending: "Belanja Operasional",
-                category_id: 4,
-                date_spending: "2025-01-10",
-                company_id: "",
-                amount_spending: 50000000,
-                name_medicine: "",
-                quantity: "",
-                unit_id: "",
-                price_per_item: "",
-            },
-        ]
-
-        const ws = XLSX.utils.json_to_sheet(rows)
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, "spending data")
-        XLSX.writeFile(wb, "template_spending.xlsx")
-
-        setAlert({
-            open: true,
-            message: "📥 Template Excel spending (dengan contoh obat) berhasil diunduh!",
-            severity: "success",
-        })
+        if (jenisUpload === "umum") {
+            const rows = [
+                {
+                    name_spending: "Belanja Operasional",
+                    category_id: 4,
+                    date_spending: "2025-01-10",
+                    amount_spending: 50000000,
+                },
+            ]
+            const ws = XLSX.utils.json_to_sheet(rows)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, "spending_umum")
+            XLSX.writeFile(wb, "template_spending_umum.xlsx")
+            setAlert({ open: true, message: "📥 Template Spending Umum diunduh!", severity: "success" })
+        } else {
+            const rows = [
+                {
+                    name_spending: "Belanja Obat Januari",
+                    category_id: 9,
+                    date_spending: "2025-01-01",
+                    company_id: 1,
+                    name_medicine: "Paracetamol",
+                    quantity: 200,
+                    unit_id: 1,
+                    price_per_item: 2000,
+                },
+                {
+                    name_spending: "Belanja Obat Januari",
+                    category_id: 9,
+                    date_spending: "2025-01-01",
+                    company_id: 1,
+                    name_medicine: "Asam Mefenamat",
+                    quantity: 150,
+                    unit_id: 2,
+                    price_per_item: 3000,
+                },
+            ]
+            const ws = XLSX.utils.json_to_sheet(rows)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, "spending_obat")
+            XLSX.writeFile(wb, "template_spending_obat.xlsx")
+            setAlert({ open: true, message: "📥 Template Spending Obat diunduh!", severity: "success" })
+        }
     }
-
 
     const isObat = String(form.category_id) === String(OBAT_CATEGORY_ID)
 
@@ -735,7 +770,7 @@ export default function InputSpendingPage() {
                 </motion.div>
             )}
 
-            {/* TAB 3: IMPORT EXCEL */}
+            {/* TAB 3: IMPORT EXCEL (❗️Dipertahankan, hanya DITAMBAH selector jenis upload) */}
             {tab === 2 && (
                 <motion.div
                     key="excel"
@@ -745,7 +780,27 @@ export default function InputSpendingPage() {
                     className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-16 text-center"
                 >
                     <CloudUpload sx={{ fontSize: 80, color: "#2C3E50" }} />
-                    <h2 className="text-4xl font-serif font-bold text-[#2C3E50] mt-4 mb-6">Upload File Excel Spending</h2>
+                    <h2 className="text-4xl font-serif font-bold text-[#2C3E50] mt-4 mb-6">
+                        Upload File Excel Spending
+                    </h2>
+
+                    {/* ✅ Tambahan: pilih jenis upload */}
+                    <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-6">
+                        <div className="md:col-span-1 text-left md:text-right pr-0 md:pr-4 font-semibold text-[#2C3E50]">
+                            Jenis Upload
+                        </div>
+                        <div className="md:col-span-2">
+                            <TextField
+                                select
+                                fullWidth
+                                value={jenisUpload}
+                                onChange={(e) => setJenisUpload(e.target.value as "umum" | "obat")}
+                            >
+                                <MenuItem value="umum">Spending Umum (tanpa obat)</MenuItem>
+                                <MenuItem value="obat">Spending Obat (kategori 9)</MenuItem>
+                            </TextField>
+                        </div>
+                    </div>
 
                     <div className="flex justify-center gap-4 mb-8">
                         <Button component="label" variant="outlined" startIcon={<InsertDriveFile />} sx={{ fontWeight: "bold", px: 4 }}>
@@ -753,7 +808,7 @@ export default function InputSpendingPage() {
                             <input hidden type="file" accept=".xlsx,.xls" onChange={handleExcelSelect} />
                         </Button>
                         <Button onClick={handleDownloadTemplate} variant="outlined" startIcon={<Download />} sx={{ fontWeight: "bold", px: 4 }}>
-                            Download Template
+                            Download Template {jenisUpload === "umum" ? "Umum" : "Obat"}
                         </Button>
                     </div>
 
@@ -784,8 +839,8 @@ export default function InputSpendingPage() {
                         </Paper>
                     )}
 
-                    <Button onClick={handleUploadExcel} variant="contained" disabled={loading || previewData.length === 0}>
-                        {loading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel Spending"}
+                    <Button onClick={handleUploadExcel} variant="contained" disabled={previewData.length === 0}>
+                        {uploading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel Spending"}
                     </Button>
                 </motion.div>
             )}
@@ -803,13 +858,6 @@ export default function InputSpendingPage() {
                         <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
                             <Business /> Input & Daftar Company Medicine
                         </h2>
-                        <Tooltip title="Refresh">
-                            <span>
-                                <IconButton onClick={getCompanies} disabled={companyLoading}>
-                                    <Refresh />
-                                </IconButton>
-                            </span>
-                        </Tooltip>
                     </div>
 
                     {/* ====== FORM INPUT COMPANY ====== */}
@@ -854,6 +902,20 @@ export default function InputSpendingPage() {
                         </Button>
                     </form>
 
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
+                            <Business /> Input & Daftar Company Medicine
+                        </h2>
+                        <div className="flex gap-2">
+                            <TextField
+                                size="small"
+                                placeholder="Cari perusahaan..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
                     {/* ====== TABLE COMPANY LIST ====== */}
                     <Paper sx={{ width: "100%", overflow: "hidden" }}>
                         <Table stickyHeader>
@@ -874,7 +936,7 @@ export default function InputSpendingPage() {
                                 ) : pagedCompanies.length > 0 ? (
                                     pagedCompanies.map((c, idx) => (
                                         <TableRow key={c.id}>
-                                            <TableCell>{(page - 1) * rowsPerPage + idx + 1}</TableCell>
+                                            <TableCell>{c.id}</TableCell>
                                             <TableCell>{c.name_company}</TableCell>
                                             <TableCell>{new Date(c.created_at).toLocaleString("id-ID")}</TableCell>
                                         </TableRow>
@@ -900,6 +962,16 @@ export default function InputSpendingPage() {
                         />
                     </div>
                 </motion.div>
+            )}
+
+            {/* === OVERLAY LOADING (FULL SCREEN, SEMI-TRANSPARAN + BLUR) === */}
+            {uploading && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-white/60 shadow-xl border border-white/40">
+                        <CircularProgress size={44} />
+                        <p className="text-lg font-medium text-[#2C3E50]">⏳ Sedang memproses, tunggu sebentar…</p>
+                    </div>
+                </div>
             )}
 
             {/* ALERT */}

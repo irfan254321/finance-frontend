@@ -1,17 +1,29 @@
-import NavbarPublic from "@/components/navbarLogout"
-import FooterLogout from "@/components/footer"
+// ❌ TIDAK ADA "use client" DI SINI
 import "./globals.css"
 import { ReactNode } from "react"
+import { AuthProvider } from "@/context/AuthContext"
+import NavbarSwitcher from "@/components/navbarSwitcher" // ✅ client component
+import FooterLogout from "@/components/footer"
 
-
-export const metadata = { title: "Finance System" }
+export const metadata = {
+  title: "RS Bhayangkara M Hasan Palembang",
+  icons: { icon: "/rs-bhayangkara-logo-v2.ico" },
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <NavbarPublic />
-        <main>{children}</main>
+      <head>
+        <link rel="icon" href="/rs-bhayangkara-logo-v2.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
+      <body className="bg-[#1a2732] text-white min-h-screen">
+        <AuthProvider>
+          {/* ✅ Client component ditaruh di dalam */}
+          <NavbarSwitcher />
+          <main>{children}</main>
+          <FooterLogout />
+        </AuthProvider>
       </body>
     </html>
   )

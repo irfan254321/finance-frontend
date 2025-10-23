@@ -1,11 +1,14 @@
 "use client"
 
-import NavbarLogin from "../../../../components/navbarLogin"
-import Footer from "../../../../components/footer"
+import Footer from "../../../../../components/footer"
 import { useEffect, useMemo, useState } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import { useParams } from "next/navigation"
 import { PieChart } from "@mui/x-charts"
+import Slide from "@mui/material/Slide"
+import { forwardRef } from "react"
+
+
 import {
     Dialog,
     DialogTitle,
@@ -42,6 +45,11 @@ type Medicine = {
     created_at: string
 }
 
+// 🪄 Animasi Fade + Zoom
+const Transition = forwardRef(function Transition(props: any, ref) {
+    return <Slide direction="up" ref={ref} {...props} timeout={500} />
+})
+
 const INCOME_LABEL: Record<number, string> = {
     1: "Klaim BPJS",
     2: "Pasien Umum",
@@ -73,6 +81,11 @@ export default function FinanceMonthly() {
 
     const [incomeRaw, setIncomeRaw] = useState<Income[]>([])
     const [spendingRaw, setSpendingRaw] = useState<Spending[]>([])
+
+    // 🆕 Zoom bulan: null = semua bulan, number = fokus ke bulan tsb (1-12)
+    const [openMonthDialog, setOpenMonthDialog] = useState(false)
+    const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+
 
     // ============== FETCH DATA ==============
     useEffect(() => {
@@ -251,7 +264,7 @@ export default function FinanceMonthly() {
     // ============== RENDER ==============
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#1a2732] via-[#2C3E50] to-[#1a2732] text-white mt-10">
-            <main className="max-w-[1400px] mx-auto px-6 pt-28 pb-16">
+            <main className="max-w-[1700px] mx-auto px-6 pt-28 pb-16">
                 <h1 className="text-4xl font-bold text-[#F4E1C1] text-center mb-10 drop-shadow-md">
                     <span className="text-yellow-400">Ringkasan Keuangan Per Bulan</span>
                     <br /> Rumah Sakit Bhayangkara M. Hasan Palembang {year}
@@ -259,128 +272,256 @@ export default function FinanceMonthly() {
 
                 {/* === LOOP PER BULAN === */}
                 <div className="flex flex-col gap-10">
-                    {MONTHS_ID.map((m, idx) => {
-                        const inc = monthly[m]?.income
-                        const sp = monthly[m]?.spending
-                        const hasAny = (inc?.total || 0) > 0 || (sp?.total || 0) > 0
-                        if (!hasAny) return null
-                        const surplus = monthly[m].surplus
+                    {MONTHS_ID
+                        .map((m, idx) => {
+                            const inc = monthly[m]?.income
+                            const sp = monthly[m]?.spending
+                            const hasAny = (inc?.total || 0) > 0 || (sp?.total || 0) > 0
+                            if (!hasAny) return null
+                            const surplus = monthly[m].surplus
 
-                        return (
-                            <Card
-                                key={m}
-                                sx={{
-                                    background: "rgba(43,59,75,0.9)",
-                                    border: "1px solid rgba(255,215,0,0.2)",
-                                    borderRadius: "20px",
-                                    padding: "1.5rem",
-                                }}
-                            >
-                                <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-                                    <h2 className="text-2xl font-bold text-[#FFD700]">
-                                        {MONTHS_LABEL[idx]}
-                                    </h2>
-                                    <div className="text-right">
-                                        <p className="text-[#F4E1C1]">💰 Pendapatan: <b>{formatRp(inc?.total || 0)}</b></p>
-                                        <p className="text-[#F4E1C1]">💸 Pengeluaran: <b>{formatRp(sp?.total || 0)}</b></p>
-                                        <p className={`text-lg font-bold ${surplus >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                            {surplus >= 0 ? `📈 Surplus: ${formatRp(surplus)}` : `📉 Defisit: ${formatRp(Math.abs(surplus))}`}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <Divider sx={{ borderColor: "rgba(255,215,0,0.2)", mb: 3 }} />
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Pendapatan Pie */}
-                                    <div className="flex flex-col items-center">
-                                        <h3 className="text-xl mb-2 text-[#F4E1C1] mr-28">Pendapatan</h3>
-                                        {inc?.pie?.length ? (
-                                            <PieChart
-                                                series={[{ data: inc.pie, innerRadius: 60, outerRadius: 120 }]}
-                                                width={520}
-                                                height={360}
-                                                onItemClick={(_, item) => handleSliceClick("income", idx, item)}
-                                                sx={{
-                                                    "& .MuiChartsLegend-root": {
-                                                        marginTop: "30px",
-                                                    },
-                                                    "& .MuiChartsLegend-label": {
-                                                        fill: "#F4E1C1",
-                                                        fontSize: "15",
-                                                        color: "#FFD700",
-                                                        fontWeight: 600,
-                                                        textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                                                    },
-                                                    "& .MuiChartsLegend-mark": {
-                                                        width: "18px",
-                                                        height: "18px",
-                                                        borderRadius: "4px",
-                                                        transform: "translateY(2px)",
-                                                    },
-                                                }}
-                                            />
-                                        ) : <p className="text-gray-400">Tidak ada data.</p>}
-                                        <Button
-                                            variant="contained"
-                                            onClick={() => openDialogForMonthAll(idx, "income")}
-                                            sx={{
-                                                mt: 1, background: "#FFD700", color: "#1a2732",
-                                                fontWeight: 700, borderRadius: "10px", px: 3,
-                                                "&:hover": { background: "#E6BE00" },
+                            return (
+                                <Card
+                                    key={m}
+                                    sx={{
+                                        background: "rgba(43,59,75,0.9)",
+                                        border: "1px solid rgba(255,215,0,0.2)",
+                                        borderRadius: "20px",
+                                        padding: "1.5rem",
+                                    }}
+                                >
+                                    <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                                        <h2
+                                            className="text-2xl font-bold text-[#FFD700] cursor-pointer hover:underline uppercase"
+                                            onClick={() => {
+                                                setSelectedMonth(m)      // simpan bulan yang dipilih
+                                                setOpenMonthDialog(true) // buka popup
                                             }}
                                         >
-                                            🔍 Lihat semua pendapatan bulan ini
-                                        </Button>
+                                            {MONTHS_LABEL[m - 1]}
+                                        </h2>
+                                        <div className="text-right">
+                                            <p className="text-[#F4E1C1]">💰 Pendapatan: <b>{formatRp(inc?.total || 0)}</b></p>
+                                            <p className="text-[#F4E1C1]">💸 Pengeluaran: <b>{formatRp(sp?.total || 0)}</b></p>
+                                            <p className={`text-lg font-bold ${surplus >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                {surplus >= 0 ? `📈 Surplus: ${formatRp(surplus)}` : `📉 Defisit: ${formatRp(Math.abs(surplus))}`}
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    {/* Pengeluaran Pie */}
-                                    <div className="flex flex-col items-center">
-                                        <h3 className="text-xl mb-2 text-[#F4E1C1] mr-36">Pengeluaran</h3>
-                                        {sp?.pie?.length ? (
-                                            <PieChart
-                                                series={[{ data: sp.pie, innerRadius: 60, outerRadius: 120 }]}
-                                                width={520}
-                                                height={360}
-                                                onItemClick={(_, item) => handleSliceClick("spending", idx, item)}
+                                    <Divider sx={{ borderColor: "rgba(255,215,0,0.2)", mb: 3 }} />
+
+                                    <div className={`grid ${selectedMonth ? "grid-cols-1 md:grid-cols-2 gap-12" : "grid-cols-1 md:grid-cols-2 gap-8"}`}>
+                                        {/* Pendapatan Pie */}
+                                        <div className="flex flex-col items-center">
+                                            <h3 className="text-xl mb-2 text-[#F4E1C1] mr-28">{selectedMonth ? "Pendapatan" : "Pendapatan"}</h3>
+                                            {inc?.pie?.length ? (
+                                                <PieChart
+                                                    series={[{ data: inc.pie, innerRadius: 60, outerRadius: selectedMonth ? 180 : 120 }]}
+                                                    width={selectedMonth ? 680 : 520}
+                                                    height={selectedMonth ? 460 : 360}
+                                                    onItemClick={(_, item) => handleSliceClick("income", m - 1, item)}
+                                                    sx={{
+                                                        "& .MuiChartsLegend-root": {
+                                                            marginTop: "30px",
+                                                        },
+                                                        "& .MuiChartsLegend-label": {
+                                                            fill: "#F4E1C1",
+                                                            fontSize: "20px",
+                                                            color: "#FFD700",
+                                                            fontWeight: 600,
+                                                            textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                                                        },
+                                                        "& .MuiChartsLegend-mark": {
+                                                            width: "18px",
+                                                            height: "18px",
+                                                            borderRadius: "4px",
+                                                            transform: "translateY(2px)",
+                                                        },
+                                                    }}
+                                                />
+                                            ) : <p className="text-gray-400">Tidak ada data.</p>}
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => openDialogForMonthAll(m - 1, "income")}
                                                 sx={{
-                                                    "& .MuiChartsLegend-root": {
-                                                        marginTop: "30px",
-                                                    },
-                                                    "& .MuiChartsLegend-label": {
-                                                        fill: "#F4E1C1",
-                                                        fontSize: "15px",
-                                                        color: "#FFD700",
-                                                        fontWeight: 600,
-                                                        textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                                                    },
-                                                    "& .MuiChartsLegend-mark": {
-                                                        width: "18px",
-                                                        height: "18px",
-                                                        borderRadius: "4px",
-                                                        transform: "translateY(2px)",
-                                                    },
+                                                    mt: 1, background: "#FFD700", color: "#1a2732",
+                                                    fontWeight: 700, borderRadius: "10px", px: 3,
+                                                    "&:hover": { background: "#E6BE00" },
                                                 }}
-                                            />
-                                        ) : <p className="text-gray-400">Tidak ada data.</p>}
-                                        <Button
-                                            variant="contained"
-                                            onClick={() => openDialogForMonthAll(idx, "spending")}
-                                            sx={{
-                                                mt: 1, background: "#FFD700", color: "#1a2732",
-                                                fontWeight: 700, borderRadius: "10px", px: 3,
-                                                "&:hover": { background: "#E6BE00" },
-                                            }}
-                                        >
-                                            🔍 Lihat semua pengeluaran bulan ini
-                                        </Button>
+                                            >
+                                                🔍 Lihat semua pendapatan bulan ini
+                                            </Button>
+                                        </div>
+
+                                        {/* Pengeluaran Pie */}
+                                        <div className="flex flex-col items-center">
+                                            <h3 className="text-xl mb-2 text-[#F4E1C1] mr-36">{selectedMonth ? "Pengeluaran" : "Pengeluaran"}</h3>
+                                            {sp?.pie?.length ? (
+                                                <PieChart
+                                                    series={[{ data: sp.pie, innerRadius: 60, outerRadius: selectedMonth ? 180 : 120 }]}
+                                                    width={selectedMonth ? 680 : 520}
+                                                    height={selectedMonth ? 460 : 360}
+                                                    onItemClick={(_, item) => handleSliceClick("spending", m - 1, item)}
+                                                    sx={{
+                                                        "& .MuiChartsLegend-root": {
+                                                            marginTop: "30px",
+                                                        },
+                                                        "& .MuiChartsLegend-label": {
+                                                            fill: "#F4E1C1",
+                                                            fontSize: "20px",
+                                                            color: "#FFD700",
+                                                            fontWeight: "600",
+                                                            textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                                                        },
+                                                        "& .MuiChartsLegend-mark": {
+                                                            width: "18px",
+                                                            height: "18px",
+                                                            borderRadius: "4px",
+                                                            transform: "translateY(2px)",
+                                                        },
+                                                    }}
+                                                />
+                                            ) : <p className="text-gray-400">Tidak ada data.</p>}
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => openDialogForMonthAll(m - 1, "spending")}
+                                                sx={{
+                                                    mt: 1, background: "#FFD700", color: "#1a2732",
+                                                    fontWeight: 700, borderRadius: "10px", px: 3,
+                                                    "&:hover": { background: "#E6BE00" },
+                                                }}
+                                            >
+                                                🔍 Lihat semua pengeluaran bulan ini
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            </Card>
-                        )
-                    })}
+                                </Card>
+                            )
+                        })}
                 </div>
             </main>
+
+            {/* ========== DIALOG BULAN (CHART BESAR) ========== */}
+            <Dialog
+                open={openMonthDialog}
+                onClose={() => setOpenMonthDialog(false)}
+                maxWidth={false}
+                fullWidth
+                TransitionComponent={Transition} // 🎬 animasi muncul
+                BackdropProps={{
+                    sx: {
+                        backdropFilter: "blur(12px)",         // 🌫️ efek blur belakang
+                        backgroundColor: "rgba(0, 0, 0, 0.5)", // 🔲 warna latar belakang (opsional)
+                        transition: "backdrop-filter 0.4s ease", // halus saat muncul
+                    },
+                }}
+                sx={{
+                    "& .MuiDialog-paper": {
+                        background: "rgba(25,30,40,0.98)",
+                        borderRadius: "25px",
+                        border: "1px solid rgba(255,215,0,0.3)",
+                        padding: "20px",
+                        color: "white",
+                        margin: "5px auto",                       // ✅ jarak atas & bawah 5px
+                        maxHeight: "calc(100vh - 10px)",          // ✅ tinggi responsif
+                        overflowY: "auto",                        // ✅ scroll jika konten tinggi
+                        boxShadow: "0 0 40px rgba(255,215,0,0.15)", // ✨ efek glow elegan
+                        transition: "transform 0.3s ease, opacity 0.3s ease",
+                    },
+                }}
+            >
+                {selectedMonth && (
+                    <>
+                        <DialogTitle>
+                            <div className="flex justify-between items-center">
+                                <p className="font-bold text-3xl text-yellow-400 w-full text-center">
+                                    {MONTHS_LABEL[selectedMonth - 1]} — {year}
+                                </p>
+                                <IconButton onClick={() => setOpenMonthDialog(false)}>
+                                    <CloseIcon />
+                                </IconButton>
+                            </div>
+                        </DialogTitle>
+                        <Divider sx={{ borderColor: "rgba(255,215,0,0.2)", mb: 2 }} />
+
+                        <DialogContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 justify-center">
+                                {/* Pendapatan */}
+                                <div className="flex flex-col items-center">
+                                    <h3 className="text-xl mb-2 text-[#F4E1C1]">Pendapatan</h3>
+                                    {monthly[selectedMonth]?.income.pie?.length ? (
+                                        <PieChart
+                                            series={[{
+                                                data: monthly[selectedMonth].income.pie,
+                                                innerRadius: 70,
+                                                outerRadius: 220
+                                            }]}
+                                            sx={{
+                                                "& .MuiChartsLegend-root": {
+                                                    marginTop: "30px",
+                                                },
+                                                "& .MuiChartsLegend-label": {
+                                                    fill: "#F4E1C1",
+                                                    fontSize: "15px",
+                                                    color: "#FFD700",
+                                                    fontWeight: "600",
+                                                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                                                },
+                                                "& .MuiChartsLegend-mark": {
+                                                    width: "18px",
+                                                    height: "18px",
+                                                    borderRadius: "4px",
+                                                    transform: "translateY(2px)",
+                                                },
+                                            }}
+                                            width={700}
+                                            height={500}
+                                            onItemClick={(_, item) => handleSliceClick("income", selectedMonth - 1, item)}
+                                        />
+                                    ) : <p className="text-gray-400">Tidak ada data.</p>}
+                                </div>
+
+                                {/* Pengeluaran */}
+                                <div className="flex flex-col items-center">
+                                    <h3 className="text-xl mb-2 text-[#F4E1C1]">Pengeluaran</h3>
+                                    {monthly[selectedMonth]?.spending.pie?.length ? (
+                                        <PieChart
+                                            series={[{
+                                                data: monthly[selectedMonth].spending.pie,
+                                                innerRadius: 70,
+                                                outerRadius: 220
+                                            }]}
+                                            sx={{
+                                                "& .MuiChartsLegend-root": {
+                                                    marginTop: "30px",
+                                                },
+                                                "& .MuiChartsLegend-label": {
+                                                    fill: "#F4E1C1",
+                                                    fontSize: "20px",
+                                                    color: "#FFD700",
+                                                    fontWeight: "600",
+                                                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                                                },
+                                                "& .MuiChartsLegend-mark": {
+                                                    width: "18px",
+                                                    height: "18px",
+                                                    borderRadius: "4px",
+                                                    transform: "translateY(2px)",
+                                                },
+                                            }}
+                                            width={700}
+                                            height={500}
+                                            onItemClick={(_, item) => handleSliceClick("spending", selectedMonth - 1, item)}
+                                        />
+                                    ) : <p className="text-gray-400">Tidak ada data.</p>}
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </>
+                )}
+            </Dialog>
+
 
             {/* ========== DIALOG DETAIL ========== */}
             <Dialog
@@ -394,6 +535,7 @@ export default function FinanceMonthly() {
                         background: "rgba(25,30,40,0.95)",
                         border: "1px solid rgba(255,215,0,0.2)",
                         color: "white",
+
                     },
                 }}
             >
