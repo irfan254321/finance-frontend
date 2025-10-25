@@ -1,5 +1,4 @@
 "use client"
-
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
@@ -10,9 +9,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login")
+      console.log("💥 Redirect ke /login dari ProtectedRoute")
+      window.location.assign("/login") // paksa reload total
     }
-  }, [loading, user, router])
+  }, [loading, user])
 
   if (loading) {
     return (
@@ -23,6 +23,5 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   if (!user) return null
-
   return <>{children}</>
 }

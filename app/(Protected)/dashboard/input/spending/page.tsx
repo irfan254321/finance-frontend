@@ -56,6 +56,8 @@ export default function InputSpendingPage() {
     const [loading, setLoading] = useState(false)
     const [file, setFile] = useState<File | null>(null)
     const [previewData, setPreviewData] = useState<any[]>([])
+    const [selectedCompanyName, setSelectedCompanyName] = useState("")
+    const [companySuggestions, setCompanySuggestions] = useState<Company[]>([])
 
     // ✅ Tambahan: selector jenis upload (Umum / Obat) untuk Tab Import Excel (1 tombol)
     const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
@@ -117,7 +119,7 @@ export default function InputSpendingPage() {
     // ===== FETCHERS =====
     const getCategories = async () => {
         try {
-            const res = await axiosInstance.get("/api/inputCategorySpending")
+            const res = await axiosInstance.get("/api/CategorySpending")
             setCategories(res.data)
         } catch (err) {
             console.error("Gagal mengambil kategori spending:", err)
@@ -130,7 +132,7 @@ export default function InputSpendingPage() {
     const getCompanies = async (searchText?: string) => {
         try {
             setCompanyLoading(true)
-            const res = await axiosInstance.get("/api/inputCompanyMedicine", {
+            const res = await axiosInstance.get("/api/CompanyMedicine", {
                 params: { search: searchText ?? search }
             })
             setCompanies(res.data)
@@ -608,25 +610,77 @@ export default function InputSpendingPage() {
                         {/* ======= Kalau kategori OBAT, tampilkan Company + Dynamic List Obat ======= */}
                         {isObat && (
                             <>
-                                <TextField
-                                    select
-                                    label="Perusahaan Obat"
-                                    name="company_id"
-                                    fullWidth
-                                    value={form.company_id}
-                                    onChange={handleChange}
-                                    required
-                                >
-                                    {companies.length ? (
-                                        companies.map((c) => (
-                                            <MenuItem key={c.id} value={c.id}>
-                                                {c.name_company}
-                                            </MenuItem>
-                                        ))
-                                    ) : (
-                                        <MenuItem disabled>Memuat perusahaan...</MenuItem>
+                                <div className="relative">
+                                    <TextField
+                                        label="Perusahaan (min 3 huruf)"
+                                        name="company_name"
+                                        fullWidth
+                                        value={selectedCompanyName}
+                                        onChange={(e) => {
+                                            const val = e.target.value
+                                            setSelectedCompanyName(val)
+
+                                            // reset company_id di form kalau ganti nama
+                                            setForm({ ...form, company_id: "" })
+
+                                            if (!val.trim()) {
+                                                setCompanySuggestions([])
+                                                return
+                                            }
+
+                                            if (val.trim().length < 3) {
+                                                setCompanySuggestions([])
+                                                return
+                                            }
+
+                                            // debounce biar gak spam query
+                                            if (typingTimeout) clearTimeout(typingTimeout)
+                                            const timeout = setTimeout(async () => {
+                                                try {
+                                                    const res = await axiosInstance.get("/api/CompanyMedicine", {
+                                                        params: { search: val.trim() },
+                                                    })
+                                                    setCompanySuggestions(res.data.slice(0, 8))
+                                                } catch (err) {
+                                                    console.error("Gagal mencari perusahaan:", err)
+                                                }
+                                            }, 400)
+                                            setTypingTimeout(timeout)
+                                        }}
+                                        required
+                                        InputProps={{
+                                            sx: { fontSize: "1.1rem", height: 70 },
+                                        }}
+                                        InputLabelProps={{
+                                            sx: { fontSize: "1.1rem" },
+                                        }}
+                                        helperText={
+                                            form.company_id
+                                                ? `Terpilih: ${selectedCompanyName} (ID: ${form.company_id})`
+                                                : "Ketik minimal 3 huruf nama perusahaan"
+                                        }
+                                    />
+
+                                    {/* 🔍 Dropdown hasil pencarian */}
+                                    {companySuggestions.length > 0 && (
+                                        <div className="absolute z-10 bg-white border border-gray-300 rounded-lg shadow-lg mt-1 w-full max-h-56 overflow-auto">
+                                            {companySuggestions.map((c) => (
+                                                <div
+                                                    key={c.id}
+                                                    onClick={() => {
+                                                        // Saat diklik, tampilin nama tapi simpan ID
+                                                        setSelectedCompanyName(c.name_company)
+                                                        setForm({ ...form, company_id: String(c.id) })
+                                                        setCompanySuggestions([])
+                                                    }}
+                                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                                >
+                                                    <b>{c.name_company}</b> <span className="text-gray-500">({c.id})</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
-                                </TextField>
+                                </div>
 
                                 <Divider sx={{ my: 2 }} />
                                 <h2 className="text-2xl font-serif font-bold text-[#2C3E50]">🧪 Detail Obat yang Dibeli</h2>

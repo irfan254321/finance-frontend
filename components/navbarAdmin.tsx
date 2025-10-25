@@ -1,224 +1,210 @@
 "use client"
+
 import { DropdownMenu, DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Avatar, Menu, MenuItem, IconButton } from "@mui/material"
-import { useAuth } from "@/context/AuthContext" // ✅ ambil user dari Context global
+import { Avatar, Menu, MenuItem, IconButton, Divider } from "@mui/material"
+import { useAuth } from "@/context/AuthContext"
 
 export default function NavbarAdmin() {
   const router = useRouter()
-  const { user, logout } = useAuth() // ✅ ambil data & fungsi logout
+  const { user, logout } = useAuth()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-[99999] bg-gradient-to-r from-[#2C3E50] via-[#3B4B5E] to-[#2C3E50] shadow-xl backdrop-blur-md border-b border-white/10">
-      <div className="flex justify-center items-center h-28 space-x-20 font-serif font-bold text-[2rem] text-white tracking-wide">
+    <nav className="fixed top-0 left-0 w-full z-[99999] bg-gradient-to-b from-[#0f141a]/90 via-[#1c2430]/85 to-[#12171d]/80 backdrop-blur-2xl border-b border-white/10 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
+      <div className="flex justify-center items-center h-24 font-serif text-sm md:text-base text-gray-100 space-x-12 select-none">
 
-        {/* 🚪 DASHBOARD */}
+        {/* DASHBOARD */}
         <button
           onClick={() => router.push("/dashboard")}
-          className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110"
+          className="relative group px-3 transition-all duration-300"
         >
-          Dashboard
+          <span className="group-hover:text-[#FFD700]">Dashboard</span>
+          <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FFD700] rounded-full transition-all duration-300 group-hover:w-full"></div>
         </button>
 
-        {/* 💰 FINANCE */}
+        {/* FINANCE */}
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110">
-            Finance
+          <DropdownMenu.Trigger className="relative group px-3 transition-all duration-300">
+            <span className="group-hover:text-[#FFD700]">Finance</span>
+            <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FFD700] rounded-full transition-all duration-300 group-hover:w-full"></div>
           </DropdownMenu.Trigger>
 
           <DropdownMenuPrimitive.Portal>
             <DropdownMenu.Content
-              sideOffset={14}
-              className="z-[99999] bg-gradient-to-br from-[#fefefe]/95 via-[#f5f6fa]/95 to-[#e8ebef]/95 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] border border-white/30 rounded-3xl py-8 px-10 space-y-6 font-serif text-3xl text-[#2C3E50] animate-fade-in-menu"
+              sideOffset={12}
+              className="z-[99999] min-w-[200px] bg-gradient-to-br from-[#0f141a]/90 via-[#1c2430]/90 to-[#12171d]/90 border border-white/10 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-4 space-y-3 text-sm text-gray-100 animate-fade-in-menu"
             >
-              {/* Income */}
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger className="flex justify-between items-center font-semibold cursor-pointer hover:text-[#FFD700] hover:translate-x-1 transition-all duration-300">
-                  Income <span className="ml-3 text-[#FFD700]">▸</span>
-                </DropdownMenu.SubTrigger>
-
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenu.SubContent
-                    className="bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl border border-white/40 rounded-2xl py-5 px-8 space-y-3 mt-3 text-2xl z-[99999] backdrop-blur-xl animate-fade-in-menu"
-                  >
-                    {[2024, 2025, 2026].map((y) => (
-                      <DropdownMenu.Item key={y}>
-                        <button
-                          onClick={() => router.push(`/dashboard/income/${y}`)}
-                          className="flex items-center gap-3 w-full text-left text-gray-700 hover:text-[#2C3E50] font-medium hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all duration-200"
-                        >
-                          📅 {y}
-                        </button>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.SubContent>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenu.Sub>
-
-              {/* Spending */}
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger className="flex justify-between items-center font-semibold cursor-pointer hover:text-[#FFD700] hover:translate-x-1 transition-all duration-300">
-                  Spending <span className="ml-3 text-[#FFD700]">▸</span>
-                </DropdownMenu.SubTrigger>
-
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenu.SubContent
-                    className="bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl border border-white/40 rounded-2xl py-5 px-8 space-y-3 mt-3 text-2xl z-[99999] backdrop-blur-xl animate-fade-in-menu"
-                  >
-                    {[2024, 2025, 2026].map((y) => (
-                      <DropdownMenu.Item key={y}>
-                        <button
-                          onClick={() => router.push(`/dashboard/spending/${y}`)}
-                          className="flex items-center gap-3 w-full text-left text-gray-700 hover:text-[#2C3E50] font-medium hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all duration-200"
-                        >
-                          💸 {y}
-                        </button>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.SubContent>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenu.Sub>
-
-              {/* Mixture */}
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger className="flex justify-between items-center font-semibold cursor-pointer hover:text-[#FFD700] hover:translate-x-1 transition-all duration-300">
-                  Mixture <span className="ml-3 text-[#FFD700]">▸</span>
-                </DropdownMenu.SubTrigger>
-
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenu.SubContent
-                    className="bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl border border-white/40 rounded-2xl py-5 px-8 space-y-3 mt-3 text-2xl z-[99999] backdrop-blur-xl animate-fade-in-menu"
-                  >
-                    {[2024, 2025, 2026].map((y) => (
-                      <DropdownMenu.Item key={y}>
-                        <button
-                          onClick={() => router.push(`/dashboard/mixture/${y}`)}
-                          className="flex items-center gap-3 w-full text-left text-gray-700 hover:text-[#2C3E50] font-medium hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all duration-200"
-                        >
-                          ⚖️ {y}
-                        </button>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.SubContent>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenu.Sub>
+              {[
+                { label: "Income", icon: "📅", route: "/dashboard/income" },
+                { label: "Spending", icon: "💸", route: "/dashboard/spending" },
+                { label: "Mixture", icon: "⚖️", route: "/dashboard/mixture" },
+              ].map((item) => (
+                <DropdownMenu.Sub key={item.label}>
+                  <DropdownMenu.SubTrigger className="flex justify-between items-center w-full cursor-pointer hover:text-[#FFD700] transition-all duration-200">
+                    {item.label}
+                    <span className="text-[#FFD700] ml-1">▸</span>
+                  </DropdownMenu.SubTrigger>
+                  <DropdownMenuPrimitive.Portal>
+                    <DropdownMenu.SubContent className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a1f27]/95 via-[#1f2630]/95 to-[#1a1f27]/95 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-3 space-y-2 mt-2 text-gray-100">
+                      {[2024, 2025, 2026].map((y) => (
+                        <DropdownMenu.Item key={y}>
+                          <button
+                            onClick={() => router.push(`${item.route}/${y}`)}
+                            className="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200"
+                          >
+                            {item.icon} {y}
+                          </button>
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.SubContent>
+                  </DropdownMenuPrimitive.Portal>
+                </DropdownMenu.Sub>
+              ))}
             </DropdownMenu.Content>
           </DropdownMenuPrimitive.Portal>
         </DropdownMenu.Root>
 
-        {/* ⚙️ MANAGE */}
+        {/* MANAGE */}
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110">
-            Manage
+          <DropdownMenu.Trigger className="relative group px-3 transition-all duration-300">
+            <span className="group-hover:text-[#FFD700]">Manage</span>
+            <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FFD700] rounded-full transition-all duration-300 group-hover:w-full"></div>
           </DropdownMenu.Trigger>
 
           <DropdownMenuPrimitive.Portal>
             <DropdownMenu.Content
-              sideOffset={14}
-              className="z-[99999] bg-gradient-to-br from-white/90 via-gray-50/90 to-gray-100/90 backdrop-blur-2xl border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-3xl py-6 px-8 space-y-4 text-2xl font-serif text-[#2C3E50] animate-fade-in-menu"
+              sideOffset={12}
+              className="z-[99999] min-w-[200px] bg-gradient-to-br from-[#0f141a]/90 via-[#1c2430]/90 to-[#12171d]/90 border border-white/10 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-4 space-y-3 text-sm text-gray-100 animate-fade-in-menu"
             >
-              {/* Input */}
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger className="flex justify-between items-center font-semibold cursor-pointer hover:text-[#FFD700] hover:translate-x-1 transition-all duration-300">
-                  ✏️ Input <span className="ml-3 text-[#FFD700]">▸</span>
-                </DropdownMenu.SubTrigger>
+              {[
+                {
+                  label: "✏️ Input",
+                  routes: [
+                    { name: "💰 Income", path: "/dashboard/input/income" },
+                    { name: "💸 Spending", path: "/dashboard/input/spending" },
+                  ],
+                },
+                {
+                  label: "🛠️ Edit",
+                  routes: [
+                    { name: "💰 Income", path: "/dashboard/edit/income" },
+                    { name: "💸 Spending", path: "/dashboard/edit/spending" },
+                  ],
+                },
+              ].map((menu) => (
+                <DropdownMenu.Sub key={menu.label}>
+                  <DropdownMenu.SubTrigger className="flex justify-between items-center cursor-pointer hover:text-[#FFD700] transition-all duration-200">
+                    {menu.label}
+                    <span className="text-[#FFD700] ml-1">▸</span>
+                  </DropdownMenu.SubTrigger>
 
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenu.SubContent
-                    className="bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl border border-white/40 rounded-2xl py-5 px-8 space-y-3 mt-3 text-2xl z-[99999] backdrop-blur-xl animate-fade-in-menu"
-                  >
-                    <DropdownMenu.Item>
-                      <button
-                        onClick={() => router.push("/dashboard/input/income")}
-                        className="w-full text-left hover:text-[#2C3E50] hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all"
-                      >
-                        💰 Income
-                      </button>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item>
-                      <button
-                        onClick={() => router.push("/dashboard/input/spending")}
-                        className="w-full text-left hover:text-[#2C3E50] hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all"
-                      >
-                        💸 Spending
-                      </button>
-                    </DropdownMenu.Item>
-                  </DropdownMenu.SubContent>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenu.Sub>
-
-              {/* Edit */}
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger className="flex justify-between items-center font-semibold cursor-pointer hover:text-[#FFD700] hover:translate-x-1 transition-all duration-300">
-                  🛠️ Edit <span className="ml-3 text-[#FFD700]">▸</span>
-                </DropdownMenu.SubTrigger>
-
-                <DropdownMenuPrimitive.Portal>
-                  <DropdownMenu.SubContent
-                    className="bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl border border-white/40 rounded-2xl py-5 px-8 space-y-3 mt-3 text-2xl z-[99999] backdrop-blur-xl animate-fade-in-menu"
-                  >
-                    <DropdownMenu.Item>
-                      <button
-                        onClick={() => router.push("/dashboard/edit/income")}
-                        className="w-full text-left hover:text-[#2C3E50] hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all"
-                      >
-                        💰 Income
-                      </button>
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item>
-                      <button
-                        onClick={() => router.push("/dashboard/edit/spending")}
-                        className="w-full text-left hover:text-[#2C3E50] hover:bg-[#FFD700]/10 px-4 py-2 rounded-xl transition-all"
-                      >
-                        💸 Spending
-                      </button>
-                    </DropdownMenu.Item>
-                  </DropdownMenu.SubContent>
-                </DropdownMenuPrimitive.Portal>
-              </DropdownMenu.Sub>
+                  <DropdownMenuPrimitive.Portal>
+                    <DropdownMenu.SubContent className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a1f27]/95 via-[#1f2630]/95 to-[#1a1f27]/95 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-3 space-y-2 mt-2 text-gray-100">
+                      {menu.routes.map((r) => (
+                        <DropdownMenu.Item key={r.path}>
+                          <button
+                            onClick={() => router.push(r.path)}
+                            className="w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200"
+                          >
+                            {r.name}
+                          </button>
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.SubContent>
+                  </DropdownMenuPrimitive.Portal>
+                </DropdownMenu.Sub>
+              ))}
             </DropdownMenu.Content>
           </DropdownMenuPrimitive.Portal>
         </DropdownMenu.Root>
 
-        {/* 👤 PROFIL ADMIN */}
+        {/* 🧑‍💼 ADMIN PROFILE */}
         {user && (
-          <div className="flex items-center gap-4 absolute right-10 top-7">
-            <p className="text-xl font-serif">
-              <span className="text-[#FFD700]">{user.name_users}</span> ({user.role})
-            </p>
-            <IconButton onClick={handleMenuOpen}>
+          <div className="flex items-center gap-4 absolute right-10 top-5 bg-gradient-to-br from-[#0f141a]/95 via-[#1c2430]/90 to-[#12171d]/90 backdrop-blur-2xl border border-[#FFD700]/20 rounded-full pl-6 pr-4 py-2.5 shadow-[0_4px_25px_rgba(255,215,0,0.15)] hover:shadow-[0_4px_25px_rgba(255,215,0,0.25)] transition-all duration-300">
+
+            {/* TEKS ADMIN */}
+            <div className="flex flex-col items-end leading-tight select-none">
+              <span className="text-[#FFD700] font-semibold text-[15px] tracking-wide drop-shadow-[0_1px_3px_rgba(255,215,0,0.3)]">
+                {user.name_users}
+              </span>
+              <span className="text-gray-300 text-[13px] font-medium">
+                {user.role.toUpperCase()}
+              </span>
+            </div>
+
+            {/* AVATAR */}
+            <IconButton onClick={handleMenuOpen} className="!p-0 hover:scale-105 transition-transform duration-300">
               <Avatar
                 alt={user.name_users}
                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name_users}`}
-                sx={{ width: 60, height: 60, border: "2px solid #FFD700" }}
+                sx={{
+                  width: 52,
+                  height: 52,
+                  border: "2px solid #FFD700",
+                  boxShadow: "0 0 15px rgba(255,215,0,0.3)",
+                  backgroundColor: "#1a1f27",
+                }}
               />
             </IconButton>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-              <MenuItem onClick={() => router.push("/dashboard/profile")}>📁 Profil Saya</MenuItem>
-              <MenuItem onClick={logout}>🚪 Logout</MenuItem> {/* ✅ logout dari context */}
+
+            {/* DROPDOWN MENU */}
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              PaperProps={{
+                sx: {
+                  borderRadius: "16px",
+                  background: "rgba(18,23,29,0.9)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "white",
+                  boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+                },
+              }}
+            >
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose()
+                  router.push("/dashboard/profile")
+                }}
+              >
+                📁 Profile
+              </MenuItem>
+              <Divider sx={{ borderColor: "rgba(255,255,255,0.1)" }} />
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose()
+                  logout()
+                }}
+              >
+                🚪 Logout
+              </MenuItem>
             </Menu>
           </div>
         )}
 
-        {/* 📝 REGISTER */}
+        {/* REGISTER */}
         <button
           onClick={() => router.push("/dashboard/admin/register")}
-          className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110"
+          className="relative group px-3 transition-all duration-300"
         >
-          Register
+          <span className="group-hover:text-[#FFD700]">Register</span>
+          <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FFD700] rounded-full transition-all duration-300 group-hover:w-full"></div>
         </button>
 
-        {/* ⚙️ ADMIN CONTENT */}
+        {/* CONTENTS */}
         <button
           onClick={() => router.push("/dashboard/admin/slide")}
-          className="transition-all duration-300 hover:text-[#FFD700] hover:scale-110"
+          className="relative group px-3 transition-all duration-300"
         >
-          Contents
+          <span className="group-hover:text-[#FFD700]">Contents</span>
+          <div className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FFD700] rounded-full transition-all duration-300 group-hover:w-full"></div>
         </button>
       </div>
     </nav>

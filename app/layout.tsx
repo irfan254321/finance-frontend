@@ -22,7 +22,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* ✅ Client component ditaruh di dalam */}
           <NavbarSwitcher />
           <main>{children}</main>
-          <FooterLogout />
         </AuthProvider>
       </body>
     </html>

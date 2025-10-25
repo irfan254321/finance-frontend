@@ -1,9 +1,10 @@
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+import ProtectedRoute from "@/components/ProtectedRoute"
+
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-          {children}
-      </body>
-    </html>
+    <div className="bg-[#1a2732] text-white min-h-screen">
+      <ProtectedRoute>{children}</ProtectedRoute>
+    </div>
   )
 }

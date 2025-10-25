@@ -21,8 +21,11 @@
     "axios": "^1.12.2",
     "chart.js": "^4.5.0",
     "chartjs": "^0.3.24",
+    "clsx": "^2.1.1",
     "dotenv": "^17.2.2",
-    "framer-motion": "^12.23.22",
+    "echarts": "^5.6.0",
+    "echarts-for-react": "^3.0.2",
+    "framer-motion": "^12.23.24",
     "js-cookie": "^3.0.5",
     "lightningcss": "^1.30.2",
     "lucide-react": "^0.546.0",
@@ -30,6 +33,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.2.1",
+    "tailwind-variants": "^3.1.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

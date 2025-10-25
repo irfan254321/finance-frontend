@@ -13,8 +13,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const res = await axiosInstance.get("/me") // 🔐 otomatis kirim cookie
-        setUser(res.data)
+        const res = await axiosInstance.get("/me")
+        setUser(res.data.data)
       } catch {
         setUser(null)
       } finally {
@@ -28,7 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async () => {
     try {
       const res = await axiosInstance.get("/me")
-      setUser(res.data)
+      // ⬇️ ambil langsung dari `res.data.data`
+      setUser(res.data.data)
+      console.log("Login fetch user berhasil:", res.data.data)
     } catch (err) {
       console.error("Login fetch user gagal:", err)
       setUser(null)
@@ -37,11 +39,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 🚪 Logout
   const logout = async () => {
-    try {
-      await axiosInstance.post("/logout")
-    } catch {}
+  try {
+    await axiosInstance.post("/logout")
+  } catch (err) {
+    console.error("Logout error:", err)
+  } finally {
     setUser(null)
   }
+}
+
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
