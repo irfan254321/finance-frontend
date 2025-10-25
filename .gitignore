@@ -43,4 +43,4 @@ next-env.d.ts
 
 #IGNORE PROTECTED FILE
 /components/ProtectedRoute.tsx
-/contexts/AuthContext.tsx
+/context/*
