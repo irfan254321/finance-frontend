@@ -1,14 +1,16 @@
+// app/dashboard/edit/spending/page.tsx (atau path kamu)
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import { motion } from "framer-motion"
 import {
-    Tabs, Tab, Box, Paper, Table, TableHead, TableRow, TableCell, TableBody, TextField, Button,
-    IconButton, Snackbar, Alert, Pagination, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem,
-    CircularProgress, Tooltip
+    Tabs, Tab, Box, Paper, Table, TableHead, TableRow, TableCell, TableBody,
+    Button, IconButton, Snackbar, Alert, Pagination, Dialog, DialogTitle, DialogContent,
+    DialogActions, MenuItem, CircularProgress, Tooltip
 } from "@mui/material"
 import { Edit, Delete, Refresh, Search } from "@mui/icons-material"
+import CustomTextField from "@/components/ui/CustomTextField"
 
 // ===== Types =====
 type Category = { id: number; name_category: string; created_at?: string }
@@ -30,6 +32,7 @@ type MedicineDetail = {
     quantity: number
     name_unit_id: number
     name_unit?: string
+    price_per_item: number
     created_at?: string
 }
 
@@ -113,49 +116,63 @@ export default function EditSpendingPage() {
     const medPageCount = Math.max(1, Math.ceil(filteredMeds.length / pageSize))
     const medPaged = useMemo(() => filteredMeds.slice((medPage - 1) * pageSize, medPage * pageSize), [filteredMeds, medPage])
 
-    // ===== Fetchers =====
+    const errToText = (e: any) => {
+        const data = e?.response?.data
+        if (typeof data === "string") return data
+        if (data?.error) return String(data.error)
+        if (data?.message) return String(data.message)
+        if (e?.message) return String(e.message)
+        try { return JSON.stringify(data ?? e) } catch { return "Terjadi kesalahan" }
+    }
+
     const getCategories = async () => {
         try {
-            const res = await axiosInstance.get("/api/inputCategorySpending")
+            const res = await axiosInstance.get("/api/CategorySpending") // <—
             setCategories(res.data)
-        } catch {
-            setAlert({ open: true, message: "Gagal memuat kategori", severity: "error" })
+        } catch (e: any) {
+            const msgOf = (e: any) =>
+                e?.response?.data?.error ||
+                e?.response?.data?.message ||
+                (typeof e?.response?.data === "string" ? e.response.data : "") ||
+                e?.message ||
+                "Terjadi kesalahan"
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         }
     }
+
     const getCompanies = async () => {
         try {
-            const res = await axiosInstance.get("/api/inputCompanyMedicine")
+            const res = await axiosInstance.get("/api/CompanyMedicine") // <—
             setCompanies(res.data)
-        } catch {
-            setAlert({ open: true, message: "Gagal memuat perusahaan", severity: "error" })
+        } catch (e: any) {
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         }
     }
     const getUnits = async () => {
         try {
             const res = await axiosInstance.get("/api/unitMedicine")
             setUnits(res.data)
-        } catch {
-            setAlert({ open: true, message: "Gagal memuat unit", severity: "error" })
+        } catch (e: any) {
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         }
     }
     const getSpendings = async () => {
         try {
             const res = await axiosInstance.get("/api/spending")
             setSpendings(res.data)
-        } catch {
-            setAlert({ open: true, message: "Gagal memuat spending", severity: "error" })
+        } catch (e: any) {
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         }
     }
     const getMedicinesBySpendingId = async (detail_spending_id: number) => {
         try {
             const res = await axiosInstance.post("/api/spendingMedicineBySpendingId", { detail_spending_id })
             setMedicines(res.data)
-        } catch {
-            setAlert({ open: true, message: "Gagal memuat detail obat", severity: "error" })
+        } catch (e: any) {
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         }
     }
 
-    // initial
     useEffect(() => {
         getCategories()
         getCompanies()
@@ -163,13 +180,10 @@ export default function EditSpendingPage() {
         getSpendings()
     }, [])
 
-    // ====== CATEGORY: Edit/Hapus ======
+    // ====== CATEGORY: Edit/Hapus (TETAP) ======
     const [editingCategory, setEditingCategory] = useState<Category | null>(null)
     const [editCategoryName, setEditCategoryName] = useState("")
-    const openEditCategory = (c: Category) => {
-        setEditingCategory(c)
-        setEditCategoryName(c.name_category)
-    }
+    const openEditCategory = (c: Category) => { setEditingCategory(c); setEditCategoryName(c.name_category) }
     const saveEditCategory = async () => {
         if (!editingCategory) return
         try {
@@ -180,9 +194,7 @@ export default function EditSpendingPage() {
             getCategories()
         } catch (e: any) {
             setAlert({ open: true, message: e?.response?.data || "Gagal update kategori", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+        } finally { setLoading(false) }
     }
     const deleteCategory = async (id: number) => {
         if (!confirm("Hapus kategori ini?")) return
@@ -192,19 +204,14 @@ export default function EditSpendingPage() {
             setAlert({ open: true, message: "🗑️ Kategori dihapus", severity: "success" })
             getCategories()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal hapus kategori", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
 
-    // ====== COMPANY: Edit/Hapus ======
+    // ====== COMPANY: Edit/Hapus (TETAP) ======
     const [editingCompany, setEditingCompany] = useState<Company | null>(null)
     const [editCompanyName, setEditCompanyName] = useState("")
-    const openEditCompany = (c: Company) => {
-        setEditingCompany(c)
-        setEditCompanyName(c.name_company)
-    }
+    const openEditCompany = (c: Company) => { setEditingCompany(c); setEditCompanyName(c.name_company) }
     const saveEditCompany = async () => {
         if (!editingCompany) return
         try {
@@ -214,10 +221,9 @@ export default function EditSpendingPage() {
             setEditingCompany(null)
             getCompanies()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal update perusahaan", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+
+        } finally { setLoading(false) }
     }
     const deleteCompany = async (id: number) => {
         if (!confirm("Hapus perusahaan ini?")) return
@@ -227,23 +233,17 @@ export default function EditSpendingPage() {
             setAlert({ open: true, message: "🗑️ Perusahaan dihapus", severity: "success" })
             getCompanies()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal hapus perusahaan", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
 
-    // ====== UNIT: Tambah/Edit/Hapus ======
+    // ====== UNIT: Tambah/Edit/Hapus (TETAP) ======
     const [unitName, setUnitName] = useState("")
     const [editingUnit, setEditingUnit] = useState<UnitMed | null>(null)
     const [editUnitName, setEditUnitName] = useState("")
-
     const addUnit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!unitName.trim()) {
-            setAlert({ open: true, message: "Nama unit wajib diisi!", severity: "error" })
-            return
-        }
+        if (!unitName.trim()) return setAlert({ open: true, message: "Nama unit wajib diisi!", severity: "error" })
         try {
             setLoading(true)
             await axiosInstance.post("/api/unitMedicine", { name_unit: unitName })
@@ -251,15 +251,10 @@ export default function EditSpendingPage() {
             setUnitName("")
             getUnits()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal tambah unit", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
-    const openEditUnit = (u: UnitMed) => {
-        setEditingUnit(u)
-        setEditUnitName(u.name_unit)
-    }
+    const openEditUnit = (u: UnitMed) => { setEditingUnit(u); setEditUnitName(u.name_unit) }
     const saveEditUnit = async () => {
         if (!editingUnit) return
         try {
@@ -269,10 +264,8 @@ export default function EditSpendingPage() {
             setEditingUnit(null)
             getUnits()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal update unit", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
     const deleteUnit = async (id: number) => {
         if (!confirm("Hapus unit ini?")) return
@@ -282,13 +275,11 @@ export default function EditSpendingPage() {
             setAlert({ open: true, message: "🗑️ Unit dihapus", severity: "success" })
             getUnits()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal hapus unit", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
 
-    // ====== SPENDING: Edit/Hapus ======
+    // ====== SPENDING: Edit/Hapus (TETAP) ======
     const [editingSpending, setEditingSpending] = useState<Spending | null>(null)
     const [spForm, setSpForm] = useState({
         name_spending: "",
@@ -313,7 +304,7 @@ export default function EditSpendingPage() {
             setLoading(true)
             await axiosInstance.put(`/api/detailSpending/${editingSpending.id}`, {
                 name_spending: spForm.name_spending,
-                amount_spending: spForm.category_id === "9" ? undefined : Number(spForm.amount_spending || 0), // kategori 9 tidak wajib
+                amount_spending: spForm.category_id === "9" ? undefined : Number(spForm.amount_spending || 0),
                 category_id: Number(spForm.category_id),
                 date_spending: spForm.date_spending,
                 company_id: spForm.company_id ? Number(spForm.company_id) : null,
@@ -322,10 +313,8 @@ export default function EditSpendingPage() {
             setEditingSpending(null)
             getSpendings()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal update spending", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
     const deleteSpending = async (id: number) => {
         if (!confirm("Hapus transaksi ini beserta semua detail obat?")) return
@@ -335,22 +324,25 @@ export default function EditSpendingPage() {
             setAlert({ open: true, message: "🗑️ Spending dihapus", severity: "success" })
             getSpendings()
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal hapus spending", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+        } finally { setLoading(false) }
     }
 
-    // ====== MEDICINE: Edit/Hapus ======
+    // ====== MEDICINE: Edit/Hapus (TETAP) ======
     const [editingMed, setEditingMed] = useState<MedicineDetail | null>(null)
-    const [medForm, setMedForm] = useState({ name_medicine: "", quantity: "", name_unit_id: "" })
-
+    const [medForm, setMedForm] = useState({
+        name_medicine: "",
+        quantity: "",
+        name_unit_id: "",
+        price_per_item: "",
+    })
     const startEditMed = (m: MedicineDetail) => {
         setEditingMed(m)
         setMedForm({
-            name_medicine: m.name_medicine,
-            quantity: String(m.quantity),
-            name_unit_id: String(m.name_unit_id),
+            name_medicine: m.name_medicine || "",
+            quantity: String(m.quantity || ""),
+            name_unit_id: String(m.name_unit_id || ""),
+            price_per_item: String(m.price_per_item || ""),
         })
     }
     const saveEditMed = async () => {
@@ -361,15 +353,13 @@ export default function EditSpendingPage() {
                 name_medicine: medForm.name_medicine,
                 quantity: Number(medForm.quantity || 0),
                 name_unit_id: Number(medForm.name_unit_id || 0),
+                price_per_item: Number(medForm.price_per_item || 0),
             })
             setAlert({ open: true, message: "✅ Detail obat diupdate", severity: "success" })
-            // refresh list based on where we are (by search or last loaded)
-            if (medSearchSpendingId) {
-                await getMedicinesBySpendingId(Number(medSearchSpendingId))
-            }
+            if (medSearchSpendingId) await getMedicinesBySpendingId(Number(medSearchSpendingId))
             setEditingMed(null)
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal update obat", severity: "error" })
+            setAlert({ open: true, message: errToText(e), severity: "error" })
         } finally {
             setLoading(false)
         }
@@ -380,61 +370,71 @@ export default function EditSpendingPage() {
             setLoading(true)
             await axiosInstance.delete(`/api/detailMedicineSpending/${id}`)
             setAlert({ open: true, message: "🗑️ Obat dihapus", severity: "success" })
-            if (medSearchSpendingId) {
-                await getMedicinesBySpendingId(Number(medSearchSpendingId))
-            }
+            if (medSearchSpendingId) await getMedicinesBySpendingId(Number(medSearchSpendingId))
         } catch (e: any) {
-            setAlert({ open: true, message: e?.response?.data || "Gagal hapus obat", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
+            setAlert({ open: true, message: errToText(e), severity: "error" })
+
+        } finally { setLoading(false) }
     }
     const searchMedBySpending = async () => {
         const id = Number(medSearchSpendingId || 0)
-        if (!id) {
-            setAlert({ open: true, message: "Isi Spending ID dulu", severity: "error" })
-            return
-        }
+        if (!id) return setAlert({ open: true, message: "Isi Spending ID dulu", severity: "error" })
         await getMedicinesBySpendingId(id)
     }
 
     // ===== Render =====
     return (
-        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-[#E8EBEF] via-[#F9FAFB] to-[#E8EBEF] px-6 py-16 mt-28">
+        <main className="min-h-screen font-serif text-[#ECECEC] px-6 md:px-20 py-24 bg-gradient-to-b from-[#0f141a]/70 via-[#1c2430]/80 to-[#12171d]/90 backdrop-blur-xl">
             {/* Header */}
             <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="text-center mb-8"
+                transition={{ duration: 0.8 }}
+                className="text-center mb-12"
             >
-                <h1 className="text-4xl md:text-5xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
+                <h1 className="text-5xl md:text-6xl font-extrabold text-[#FFD700] drop-shadow-[0_2px_10px_rgba(255,215,0,0.2)]">
                     EDIT & MANAGE SPENDING
                 </h1>
-                <div className="w-28 h-[4px] bg-gradient-to-r from-[#2C3E50] to-[#FFD700] mx-auto mt-4 rounded-full" />
+                <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
+                    Ubah data belanja, perusahaan, unit, dan detail obat — dengan tampilan konsisten.
+                </p>
+                <div className="w-28 h-[4px] bg-gradient-to-r from-[#2C3E50] to-[#FFD700] mx-auto mt-6 rounded-full" />
             </motion.div>
 
-            {/* Tabs */}
+            {/* Container */}
             <Box
                 sx={{
                     width: "100%",
                     maxWidth: "1200px",
-                    bgcolor: "rgba(255,255,255,0.95)",
-                    borderRadius: "20px",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
                     p: { xs: 2, md: 3 },
+                    borderRadius: "20px",
+                    border: "1px solid rgba(255,215,0,0.20)",
+                    background: "rgba(18,23,29,0.55)",
+                    backdropFilter: "blur(16px)",
+                    boxShadow: "0 0 25px rgba(255,215,0,0.08)",
+                    mx: "auto", // <— ini bikin center
                 }}
             >
+                {/* Tabs MUI di-skin agar mirip Tabs custom */}
                 <Tabs
                     value={tab}
                     onChange={(_, v) => setTab(v)}
                     variant="scrollable"
                     scrollButtons="auto"
+                    sx={{
+                        "& .MuiTab-root": {
+                            color: "#D1D5DB",
+                            textTransform: "none",
+                            fontWeight: 600,
+                            mr: 1,
+                            borderRadius: "12px",
+                            px: 2,
+                            "&.Mui-selected": { color: "#12171d", backgroundColor: "#FFD700" },
+                        },
+                    }}
                     TabIndicatorProps={{
-                        style: {
-                            background: "linear-gradient(90deg,#2C3E50 0%,#FFD700 100%)",
-                            height: "4px",
-                            borderRadius: "4px",
+                        sx: {
+                            height: "0px",
                         },
                     }}
                 >
@@ -445,216 +445,262 @@ export default function EditSpendingPage() {
                     <Tab label="Medicine Detail" />
                 </Tabs>
 
-                {/* CATEGORY TAB */}
+                {/* ========== CATEGORY TAB ========== */}
                 {tab === 0 && (
-                    <section className="mt-4">
+                    <section className="mt-5">
                         <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between mb-3">
                             <div className="flex items-center gap-2 w-full md:w-1/2">
                                 <Search fontSize="small" />
-                                <TextField fullWidth size="small" placeholder="Cari kategori..."
-                                    value={catQuery} onChange={e => setCatQuery(e.target.value)} />
+                                <CustomTextField
+                                    fullWidth
+                                    size="small"
+                                    placeholder="Cari kategori..."
+                                    value={catQuery}
+                                    onChange={(e: any) => setCatQuery(e.target.value)}
+                                    sx={{
+                                        "& .MuiInputBase-input": { fontSize: 18, py: 2 },      // tinggi & ukuran teks input
+                                        "& .MuiInputLabel-root": { fontSize: 16 },             // label
+                                    }}
+                                />
                             </div>
                             <Tooltip title="Refresh">
-                                <span>
-                                    <IconButton onClick={getCategories} disabled={loading}><Refresh /></IconButton>
-                                </span>
+                                <span><IconButton onClick={getCategories} disabled={loading} sx={{ color: "#FFD700" }}><Refresh /></IconButton></span>
                             </Tooltip>
                         </div>
-                        <Paper>
+
+                        <Paper sx={{ background: "transparent", borderRadius: "16px", border: "1px solid rgba(255,215,0,0.2)" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Nama Kategori</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Aksi</TableCell>
+                                        {["ID", "Nama Kategori", "Aksi"].map(h => (
+                                            <TableCell key={h} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>{h}</TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {catPaged.map(c => (
-                                        <TableRow key={c.id}>
+                                        <TableRow key={c.id} hover sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{c.id}</TableCell>
                                             <TableCell>{c.name_category}</TableCell>
                                             <TableCell>
-                                                <IconButton size="small" onClick={() => openEditCategory(c)}><Edit fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => deleteCategory(c.id)}><Delete fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => openEditCategory(c)} sx={{ color: "#FFE55C" }}><Edit fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => deleteCategory(c.id)} sx={{ color: "#ff6363" }}><Delete fontSize="small" /></IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {catPaged.length === 0 && (
-                                        <TableRow><TableCell colSpan={3}>Tidak ada data</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={3} sx={{ color: "#ECECEC" }}>Tidak ada data</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </Paper>
+
                         <div className="flex justify-center mt-3">
-                            <Pagination count={catPageCount} page={catPage} onChange={(_, v) => setCatPage(v)} />
+                            <Pagination count={catPageCount} page={catPage} onChange={(_, v) => setCatPage(v)}
+                                sx={{ "& .MuiPaginationItem-root": { color: "#ECECEC" }, "& .Mui-selected": { bgcolor: "#FFD700", color: "#12171d" } }}
+                            />
                         </div>
 
-                        <Dialog open={!!editingCategory} onClose={() => setEditingCategory(null)}>
+                        <Dialog open={!!editingCategory} onClose={() => setEditingCategory(null)}
+                            PaperProps={{
+                                sx: {
+                                    background: "rgba(18,23,29,0.95)",
+                                    border: "1px solid rgba(255,215,0,0.25)",
+                                    color: "#ECECEC",
+                                    borderRadius: "16px"
+                                }
+                            }}
+                        >
                             <DialogTitle>Edit Kategori</DialogTitle>
                             <DialogContent>
-                                <TextField fullWidth label="Nama Kategori" sx={{ mt: 1 }}
-                                    value={editCategoryName} onChange={e => setEditCategoryName(e.target.value)} />
+                                <CustomTextField fullWidth label="Nama Kategori" sx={{
+                                    "& .MuiInputBase-input": { fontSize: 18, py: 2 },      // tinggi & ukuran teks input
+                                    "& .MuiInputLabel-root": { fontSize: 16 },             // label
+                                }}
+                                    value={editCategoryName} onChange={(e: any) => setEditCategoryName(e.target.value)} />
                             </DialogContent>
                             <DialogActions>
-                                <Button onClick={() => setEditingCategory(null)}>Batal</Button>
-                                <Button onClick={saveEditCategory} variant="contained" disabled={loading}>Simpan</Button>
+                                <Button onClick={() => setEditingCategory(null)} sx={{ color: "#ECECEC" }}>Batal</Button>
+                                <Button onClick={saveEditCategory} variant="contained" disabled={loading}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Simpan</Button>
                             </DialogActions>
                         </Dialog>
                     </section>
                 )}
 
-                {/* COMPANY TAB */}
+                {/* ========== COMPANY TAB ========== */}
                 {tab === 1 && (
-                    <section className="mt-4">
+                    <section className="mt-5">
                         <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between mb-3">
                             <div className="flex items-center gap-2 w-full md:w-1/2">
                                 <Search fontSize="small" />
-                                <TextField fullWidth size="small" placeholder="Cari perusahaan..."
-                                    value={companyQuery} onChange={e => setCompanyQuery(e.target.value)} />
+                                <CustomTextField fullWidth size="small" placeholder="Cari perusahaan..."
+                                    value={companyQuery} onChange={(e: any) => setCompanyQuery(e.target.value)} />
                             </div>
                             <Tooltip title="Refresh">
-                                <span>
-                                    <IconButton onClick={getCompanies} disabled={loading}><Refresh /></IconButton>
-                                </span>
+                                <span><IconButton onClick={getCompanies} disabled={loading} sx={{ color: "#FFD700" }}><Refresh /></IconButton></span>
                             </Tooltip>
                         </div>
-                        <Paper>
+
+                        <Paper sx={{ background: "transparent", borderRadius: "16px", border: "1px solid rgba(255,215,0,0.2)" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Nama Perusahaan</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Aksi</TableCell>
+                                        {["ID", "Nama Perusahaan", "Created At", "Aksi"].map(h => (
+                                            <TableCell key={h} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>{h}</TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {compPaged.map(c => (
-                                        <TableRow key={c.id}>
+                                        <TableRow key={c.id} hover sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{c.id}</TableCell>
                                             <TableCell>{c.name_company}</TableCell>
                                             <TableCell>{c.created_at ? new Date(c.created_at).toLocaleString("id-ID") : "-"}</TableCell>
                                             <TableCell>
-                                                <IconButton size="small" onClick={() => openEditCompany(c)}><Edit fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => deleteCompany(c.id)}><Delete fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => openEditCompany(c)} sx={{ color: "#FFE55C" }}><Edit fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => deleteCompany(c.id)} sx={{ color: "#ff6363" }}><Delete fontSize="small" /></IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {compPaged.length === 0 && (
-                                        <TableRow><TableCell colSpan={4}>Tidak ada data</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={4} sx={{ color: "#ECECEC" }}>Tidak ada data</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </Paper>
+
                         <div className="flex justify-center mt-3">
-                            <Pagination count={compPageCount} page={compPage} onChange={(_, v) => setCompPage(v)} />
+                            <Pagination count={compPageCount} page={compPage} onChange={(_, v) => setCompPage(v)}
+                                sx={{ "& .MuiPaginationItem-root": { color: "#ECECEC" }, "& .Mui-selected": { bgcolor: "#FFD700", color: "#12171d" } }}
+                            />
                         </div>
 
-                        <Dialog open={!!editingCompany} onClose={() => setEditingCompany(null)}>
+                        <Dialog open={!!editingCompany} onClose={() => setEditingCompany(null)}
+                            PaperProps={{
+                                sx: {
+                                    background: "rgba(18,23,29,0.95)",
+                                    border: "1px solid rgba(255,215,0,0.25)",
+                                    color: "#ECECEC",
+                                    borderRadius: "16px"
+                                }
+                            }}
+                        >
                             <DialogTitle>Edit Perusahaan</DialogTitle>
                             <DialogContent>
-                                <TextField fullWidth label="Nama Perusahaan" sx={{ mt: 1 }}
-                                    value={editCompanyName} onChange={e => setEditCompanyName(e.target.value)} />
+                                <CustomTextField fullWidth label="Nama Perusahaan" sx={{ mt: 1 }}
+                                    value={editCompanyName} onChange={(e: any) => setEditCompanyName(e.target.value)} />
                             </DialogContent>
                             <DialogActions>
-                                <Button onClick={() => setEditingCompany(null)}>Batal</Button>
-                                <Button onClick={saveEditCompany} variant="contained" disabled={loading}>Simpan</Button>
+                                <Button onClick={() => setEditingCompany(null)} sx={{ color: "#ECECEC" }}>Batal</Button>
+                                <Button onClick={saveEditCompany} variant="contained" disabled={loading}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Simpan</Button>
                             </DialogActions>
                         </Dialog>
                     </section>
                 )}
 
-                {/* UNIT TAB */}
+                {/* ========== UNIT TAB ========== */}
                 {tab === 2 && (
-                    <section className="mt-4">
+                    <section className="mt-5">
                         <div className="flex flex-col md:flex-row items-start md:items-end gap-3 mb-3">
                             <div className="flex items-center gap-2 w-full md:w-1/2">
                                 <Search fontSize="small" />
-                                <TextField fullWidth size="small" placeholder="Cari unit..."
-                                    value={unitQuery} onChange={e => setUnitQuery(e.target.value)} />
+                                <CustomTextField fullWidth size="small" placeholder="Cari unit..."
+                                    value={unitQuery} onChange={(e: any) => setUnitQuery(e.target.value)} />
                             </div>
                             <form onSubmit={addUnit} className="flex gap-2 w-full md:w-1/2">
-                                <TextField fullWidth label="Tambah Unit Baru" value={unitName} onChange={e => setUnitName(e.target.value)} />
-                                <Button type="submit" variant="contained" disabled={loading}>Tambah</Button>
+                                <CustomTextField fullWidth label="Tambah Unit Baru" value={unitName} onChange={(e: any) => setUnitName(e.target.value)} />
+                                <Button type="submit" variant="contained" disabled={loading}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, px: 3, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Tambah</Button>
                                 <Tooltip title="Refresh">
-                                    <span><IconButton onClick={getUnits} disabled={loading}><Refresh /></IconButton></span>
+                                    <span><IconButton onClick={getUnits} disabled={loading} sx={{ color: "#FFD700" }}><Refresh /></IconButton></span>
                                 </Tooltip>
                             </form>
                         </div>
-                        <Paper>
+
+                        <Paper sx={{ background: "transparent", borderRadius: "16px", border: "1px solid rgba(255,215,0,0.2)" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Nama Unit</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Aksi</TableCell>
+                                        {["ID", "Nama Unit", "Aksi"].map(h => (
+                                            <TableCell key={h} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>{h}</TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {unitPaged.map(u => (
-                                        <TableRow key={u.id}>
+                                        <TableRow key={u.id} hover sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{u.id}</TableCell>
                                             <TableCell>{u.name_unit}</TableCell>
                                             <TableCell>
-                                                <IconButton size="small" onClick={() => openEditUnit(u)}><Edit fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => deleteUnit(u.id)}><Delete fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => openEditUnit(u)} sx={{ color: "#FFE55C" }}><Edit fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => deleteUnit(u.id)} sx={{ color: "#ff6363" }}><Delete fontSize="small" /></IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {unitPaged.length === 0 && (
-                                        <TableRow><TableCell colSpan={3}>Tidak ada data</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={3} sx={{ color: "#ECECEC" }}>Tidak ada data</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </Paper>
+
                         <div className="flex justify-center mt-3">
-                            <Pagination count={unitPageCount} page={unitPage} onChange={(_, v) => setUnitPage(v)} />
+                            <Pagination count={unitPageCount} page={unitPage} onChange={(_, v) => setUnitPage(v)}
+                                sx={{ "& .MuiPaginationItem-root": { color: "#ECECEC" }, "& .Mui-selected": { bgcolor: "#FFD700", color: "#12171d" } }}
+                            />
                         </div>
 
-                        <Dialog open={!!editingUnit} onClose={() => setEditingUnit(null)}>
+                        <Dialog open={!!editingUnit} onClose={() => setEditingUnit(null)}
+                            PaperProps={{
+                                sx: { background: "rgba(18,23,29,0.95)", border: "1px solid rgba(255,215,0,0.25)", color: "#ECECEC", borderRadius: "16px" }
+                            }}
+                        >
                             <DialogTitle>Edit Unit</DialogTitle>
                             <DialogContent>
-                                <TextField fullWidth label="Nama Unit" sx={{ mt: 1 }}
-                                    value={editUnitName} onChange={e => setEditUnitName(e.target.value)} />
+                                <CustomTextField fullWidth label="Nama Unit" sx={{ mt: 1 }}
+                                    value={editUnitName} onChange={(e: any) => setEditUnitName(e.target.value)} />
                             </DialogContent>
                             <DialogActions>
-                                <Button onClick={() => setEditingUnit(null)}>Batal</Button>
-                                <Button onClick={saveEditUnit} variant="contained" disabled={loading}>Simpan</Button>
+                                <Button onClick={() => setEditingUnit(null)} sx={{ color: "#ECECEC" }}>Batal</Button>
+                                <Button onClick={saveEditUnit} variant="contained" disabled={loading}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Simpan</Button>
                             </DialogActions>
                         </Dialog>
                     </section>
                 )}
 
-                {/* SPENDING TAB */}
+                {/* ========== SPENDING TAB ========== */}
                 {tab === 3 && (
-                    <section className="mt-4">
+                    <section className="mt-5">
                         <div className="flex flex-col md:flex-row items-start md:items-end gap-3 mb-3">
                             <div className="flex items-center gap-2 w-full md:w-1/2">
                                 <Search fontSize="small" />
-                                <TextField fullWidth size="small" placeholder="Cari spending (nama/tanggal/category/company)..."
-                                    value={spendingQuery} onChange={e => setSpendingQuery(e.target.value)} />
+                                <CustomTextField fullWidth size="small" placeholder="Cari spending (nama/tanggal/category/company)..."
+                                    value={spendingQuery} onChange={(e: any) => setSpendingQuery(e.target.value)} />
                             </div>
                             <Tooltip title="Refresh">
-                                <span><IconButton onClick={getSpendings} disabled={loading}><Refresh /></IconButton></span>
+                                <span><IconButton onClick={getSpendings} disabled={loading} sx={{ color: "#FFD700" }}><Refresh /></IconButton></span>
                             </Tooltip>
                         </div>
-                        <Paper>
+
+                        <Paper sx={{ background: "transparent", borderRadius: "16px", border: "1px solid rgba(255,215,0,0.2)" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Nama</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Jumlah</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Kategori</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Company</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Tanggal</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Aksi</TableCell>
+                                        {["ID", "Nama", "Jumlah", "Kategori", "Company", "Tanggal", "Aksi"].map(h => (
+                                            <TableCell key={h} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>{h}</TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {spPaged.map(s => (
-                                        <TableRow key={s.id}>
+                                        <TableRow key={s.id} hover sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{s.id}</TableCell>
                                             <TableCell>{s.name_spending}</TableCell>
                                             <TableCell>{rupiah(s.amount_spending)}</TableCell>
@@ -662,57 +708,64 @@ export default function EditSpendingPage() {
                                             <TableCell>{s.company_id ?? "-"}</TableCell>
                                             <TableCell>{s.date_spending}</TableCell>
                                             <TableCell>
-                                                <IconButton size="small" onClick={() => openEditSpending(s)}><Edit fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => deleteSpending(s.id)}><Delete fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => openEditSpending(s)} sx={{ color: "#FFE55C" }}><Edit fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => deleteSpending(s.id)} sx={{ color: "#ff6363" }}><Delete fontSize="small" /></IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {spPaged.length === 0 && (
-                                        <TableRow><TableCell colSpan={7}>Tidak ada data</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={7} sx={{ color: "#ECECEC" }}>Tidak ada data</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </Paper>
+
                         <div className="flex justify-center mt-3">
-                            <Pagination count={spPageCount} page={spPage} onChange={(_, v) => setSpPage(v)} />
+                            <Pagination count={spPageCount} page={spPage} onChange={(_, v) => setSpPage(v)}
+                                sx={{ "& .MuiPaginationItem-root": { color: "#ECECEC" }, "& .Mui-selected": { bgcolor: "#FFD700", color: "#12171d" } }}
+                            />
                         </div>
 
                         {/* Edit Spending Dialog */}
-                        <Dialog open={!!editingSpending} onClose={() => setEditingSpending(null)} maxWidth="sm" fullWidth>
+                        <Dialog open={!!editingSpending} onClose={() => setEditingSpending(null)} maxWidth="sm" fullWidth
+                            PaperProps={{
+                                sx: { background: "rgba(18,23,29,0.95)", border: "1px solid rgba(255,215,0,0.25)", color: "#ECECEC", borderRadius: "16px" }
+                            }}
+                        >
                             <DialogTitle>Edit Spending</DialogTitle>
                             <DialogContent className="flex flex-col gap-3">
-                                <TextField
+                                <CustomTextField
                                     label="Nama Spending"
                                     fullWidth
                                     value={spForm.name_spending}
-                                    onChange={(e) => setSpForm({ ...spForm, name_spending: e.target.value })}
+                                    onChange={(e: any) => setSpForm({ ...spForm, name_spending: e.target.value })}
                                 />
-                                <TextField
+                                <CustomTextField
                                     select
                                     label="Kategori"
                                     fullWidth
                                     value={spForm.category_id}
-                                    onChange={(e) => setSpForm({ ...spForm, category_id: e.target.value })}
+                                    onChange={(e: any) => setSpForm({ ...spForm, category_id: e.target.value })}
                                 >
                                     {categories.map(c => (
                                         <MenuItem key={c.id} value={String(c.id)}>{c.name_category}</MenuItem>
                                     ))}
-                                </TextField>
-                                <TextField
+                                </CustomTextField>
+                                <CustomTextField
                                     label="Tanggal"
                                     type="date"
                                     fullWidth
                                     value={spForm.date_spending}
-                                    onChange={(e) => setSpForm({ ...spForm, date_spending: e.target.value })}
+                                    onChange={(e: any) => setSpForm({ ...spForm, date_spending: e.target.value })}
                                     InputLabelProps={{ shrink: true }}
                                 />
-                                <TextField
+                                <CustomTextField
                                     label="Company ID (khusus kategori 9)"
                                     fullWidth
                                     value={spForm.company_id}
-                                    onChange={(e) => setSpForm({ ...spForm, company_id: e.target.value })}
+                                    onChange={(e: any) => setSpForm({ ...spForm, company_id: e.target.value })}
                                 />
-                                <TextField
+                                <CustomTextField
                                     label="Amount (Rp)"
                                     fullWidth
                                     value={
@@ -722,108 +775,197 @@ export default function EditSpendingPage() {
                                                 ? "Rp " + new Intl.NumberFormat("id-ID").format(Number(spForm.amount_spending))
                                                 : "")
                                     }
-                                    onChange={(e) => {
-                                        const raw = e.target.value.replace(/[^0-9]/g, "")
+                                    onChange={(e: any) => {
+                                        const raw = String(e.target.value).replace(/[^0-9]/g, "")
                                         setSpForm({ ...spForm, amount_spending: raw })
                                     }}
                                     disabled={spForm.category_id === "9"}
                                 />
                             </DialogContent>
                             <DialogActions>
-                                <Button onClick={() => setEditingSpending(null)}>Batal</Button>
-                                <Button onClick={saveEditSpending} variant="contained" disabled={loading}>Simpan</Button>
+                                <Button onClick={() => setEditingSpending(null)} sx={{ color: "#ECECEC" }}>Batal</Button>
+                                <Button onClick={saveEditSpending} variant="contained" disabled={loading}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Simpan</Button>
                             </DialogActions>
                         </Dialog>
                     </section>
                 )}
 
-                {/* MEDICINE DETAIL TAB */}
+                {/* ========== MEDICINE DETAIL TAB ========== */}
                 {tab === 4 && (
-                    <section className="mt-4">
+                    <section className="mt-5">
                         <div className="flex flex-col md:flex-row gap-3 items-start md:items-end mb-3">
-                            <div className="flex items-center gap-2 w-full md:w-1/2">
-                                <Search fontSize="small" />
-                                <TextField fullWidth size="small" placeholder="Cari obat (nama/ID spending)..."
-                                    value={medQuery} onChange={e => setMedQuery(e.target.value)} />
-                            </div>
                             <div className="flex items-end gap-2 w-full md:w-1/2">
-                                <TextField
+                                <CustomTextField
                                     fullWidth
                                     label="Cari berdasarkan Spending ID"
                                     value={medSearchSpendingId}
-                                    onChange={(e) => setMedSearchSpendingId(e.target.value.replace(/[^0-9]/g, ""))}
-                                    inputProps={{ inputMode: "numeric" }}
+                                    onChange={(e: any) => setMedSearchSpendingId(String(e.target.value).replace(/[^0-9]/g, ""))}
+                                    inputProps={{ inputMode: "numeric" } as any}
                                 />
-                                <Button variant="contained" onClick={searchMedBySpending}>Cari</Button>
+                                <Button variant="contained" onClick={searchMedBySpending}
+                                    sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: 700, "&:hover": { bgcolor: "#FFE55C" } }}
+                                >Cari</Button>
                             </div>
                         </div>
-                        <Paper>
+
+                        <Paper sx={{ background: "transparent", borderRadius: "16px", border: "1px solid rgba(255,215,0,0.2)" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Spending ID</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Nama Obat</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Qty</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Unit</TableCell>
-                                        <TableCell sx={{ fontWeight: "bold" }}>Aksi</TableCell>
+                                        {["ID", "Spending ID", "Nama Obat", "Qty", "Unit", "Harga per Item (Rp)", "Aksi"].map(h => (
+                                            <TableCell key={h} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>
+                                                {h}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {medPaged.map(m => (
-                                        <TableRow key={m.id}>
+                                        <TableRow key={m.id} hover sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{m.id}</TableCell>
                                             <TableCell>{m.detail_spending_id}</TableCell>
                                             <TableCell>{m.name_medicine}</TableCell>
                                             <TableCell>{m.quantity}</TableCell>
                                             <TableCell>{m.name_unit ?? m.name_unit_id}</TableCell>
+                                            <TableCell>{rupiah(m.price_per_item)}</TableCell>
                                             <TableCell>
-                                                <IconButton size="small" onClick={() => startEditMed(m)}><Edit fontSize="small" /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => deleteMed(m.id)}><Delete fontSize="small" /></IconButton>
+                                                <IconButton size="small" onClick={() => startEditMed(m)} sx={{ color: "#FFE55C" }}>
+                                                    <Edit fontSize="small" />
+                                                </IconButton>
+                                                <IconButton size="small" onClick={() => deleteMed(m.id)} sx={{ color: "#ff6363" }}>
+                                                    <Delete fontSize="small" />
+                                                </IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {medPaged.length === 0 && (
-                                        <TableRow><TableCell colSpan={6}>Tidak ada data</TableCell></TableRow>
-                                    )}
                                 </TableBody>
                             </Table>
                         </Paper>
+
                         <div className="flex justify-center mt-3">
-                            <Pagination count={medPageCount} page={medPage} onChange={(_, v) => setMedPage(v)} />
+                            <Pagination count={medPageCount} page={medPage} onChange={(_, v) => setMedPage(v)}
+                                sx={{ "& .MuiPaginationItem-root": { color: "#ECECEC" }, "& .Mui-selected": { bgcolor: "#FFD700", color: "#12171d" } }}
+                            />
                         </div>
 
                         {/* Edit Medicine Dialog */}
-                        <Dialog open={!!editingMed} onClose={() => setEditingMed(null)}>
-                            <DialogTitle>Edit Detail Obat</DialogTitle>
-                            <DialogContent className="flex flex-col gap-3">
-                                <TextField
+                        <Dialog
+                            open={!!editingMed}
+                            onClose={() => setEditingMed(null)}
+                            maxWidth="sm"
+                            fullWidth
+                            PaperProps={{
+                                sx: {
+                                    background: "rgba(18,23,29,0.95)",
+                                    border: "1px solid rgba(255,215,0,0.35)",
+                                    color: "#ECECEC",
+                                    borderRadius: "20px",
+                                    p: 3,
+                                    boxShadow: "0 0 40px rgba(255,215,0,0.15)",
+                                },
+                            }}
+                        >
+                            <DialogTitle
+                                sx={{
+                                    fontSize: "1.8rem",
+                                    fontWeight: 700,
+                                    textAlign: "center",
+                                    color: "#FFD700",
+                                    letterSpacing: "0.5px",
+                                    mb: 2,
+                                }}
+                            >
+                                Edit Detail Obat
+                            </DialogTitle>
+
+                            <DialogContent
+                                className="flex flex-col gap-4"
+                                sx={{
+                                    "& .MuiInputBase-input": {
+                                        fontSize: "1.2rem",
+                                        py: 2.5,
+                                    },
+                                    "& .MuiInputLabel-root": {
+                                        fontSize: "1.1rem",
+                                    },
+                                }}
+                            >
+                                <CustomTextField
                                     label="Nama Obat"
                                     fullWidth
                                     value={medForm.name_medicine}
-                                    onChange={(e) => setMedForm({ ...medForm, name_medicine: e.target.value })}
+                                    onChange={(e: any) =>
+                                        setMedForm({ ...medForm, name_medicine: e.target.value })
+                                    }
                                 />
-                                <TextField
+
+                                <CustomTextField
                                     label="Quantity"
                                     fullWidth
                                     value={medForm.quantity}
-                                    onChange={(e) => setMedForm({ ...medForm, quantity: e.target.value.replace(/[^0-9]/g, "") })}
+                                    onChange={(e: any) =>
+                                        setMedForm({
+                                            ...medForm,
+                                            quantity: String(e.target.value).replace(/[^0-9]/g, ""),
+                                        })
+                                    }
                                 />
-                                <TextField
+
+                                <CustomTextField
                                     select
                                     label="Unit"
                                     fullWidth
                                     value={medForm.name_unit_id}
-                                    onChange={(e) => setMedForm({ ...medForm, name_unit_id: e.target.value })}
+                                    onChange={(e: any) =>
+                                        setMedForm({ ...medForm, name_unit_id: e.target.value })
+                                    }
                                 >
-                                    {units.map(u => (
-                                        <MenuItem key={u.id} value={String(u.id)}>{u.name_unit}</MenuItem>
+                                    {units.map((u) => (
+                                        <MenuItem key={u.id} value={String(u.id)}>
+                                            {u.name_unit}
+                                        </MenuItem>
                                     ))}
-                                </TextField>
+                                </CustomTextField>
+
+                                <CustomTextField
+                                    label="Harga per Item (Rp)"
+                                    fullWidth
+                                    value={new Intl.NumberFormat("id-ID").format(
+                                        Number(medForm.price_per_item || 0)
+                                    )}
+                                    onChange={(e: any) => {
+                                        const numeric = e.target.value.replace(/[^0-9]/g, "")
+                                        setMedForm({ ...medForm, price_per_item: numeric })
+                                    }}
+                                />
                             </DialogContent>
-                            <DialogActions>
-                                <Button onClick={() => setEditingMed(null)}>Batal</Button>
-                                <Button onClick={saveEditMed} variant="contained" disabled={loading}>Simpan</Button>
+
+                            <DialogActions sx={{ justifyContent: "space-between", mt: 2 }}>
+                                <Button
+                                    onClick={() => setEditingMed(null)}
+                                    sx={{ color: "#ECECEC", fontSize: "1.1rem", fontWeight: 600 }}
+                                >
+                                    BATAL
+                                </Button>
+                                <Button
+                                    onClick={saveEditMed}
+                                    variant="contained"
+                                    disabled={loading}
+                                    sx={{
+                                        bgcolor: "#FFD700",
+                                        color: "#12171d",
+                                        fontSize: "1.1rem",
+                                        fontWeight: 700,
+                                        px: 4,
+                                        py: 1.2,
+                                        borderRadius: "10px",
+                                        "&:hover": { bgcolor: "#FFE55C" },
+                                    }}
+                                >
+                                    SIMPAN
+                                </Button>
                             </DialogActions>
                         </Dialog>
                     </section>
@@ -845,9 +987,9 @@ export default function EditSpendingPage() {
             {/* GLOBAL LOADING OVERLAY (subtle) */}
             {loading && (
                 <div className="fixed inset-0 pointer-events-none flex items-center justify-center">
-                    <CircularProgress />
+                    <CircularProgress sx={{ color: "#FFD700" }} />
                 </div>
             )}
-        </div>
+        </main>
     )
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import {
-    TextField,
     MenuItem,
     Button,
     Snackbar,
@@ -20,9 +19,8 @@ import {
     TableRow,
     Paper,
     Pagination,
-    IconButton,
-    Tooltip,
 } from "@mui/material"
+import { styled } from "@mui/material/styles"
 import { motion } from "framer-motion"
 import {
     MonetizationOn,
@@ -36,6 +34,57 @@ import {
     Business,
 } from "@mui/icons-material"
 import * as XLSX from "xlsx"
+
+/* =========================
+   CUSTOM TEXT FIELD (DARK)
+   ========================= */
+import TextField from "@mui/material/TextField"
+
+const CustomTextField = styled(TextField)(({ theme }) => ({
+    // Label
+    "& .MuiInputLabel-root": {
+        color: "rgba(236,236,236,0.7)",
+        fontWeight: 500,
+    },
+    "& .MuiInputLabel-root.Mui-focused": {
+        color: "#FFD700",
+    },
+
+    // Input base
+    "& .MuiInputBase-root": {
+        color: "#ECECEC",
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 12,
+    },
+
+    // Placeholder
+    "& .MuiInputBase-input::placeholder": {
+        color: "rgba(236,236,236,0.55)",
+        opacity: 1,
+    },
+
+    // Outlined border
+    "& .MuiOutlinedInput-notchedOutline": {
+        borderColor: "rgba(255,215,0,0.25)",
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+        borderColor: "#FFD700",
+    },
+    "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+        borderColor: "#FFD700",
+        boxShadow: "0 0 0 2px rgba(255,215,0,0.2)",
+    },
+
+    // Select icon (dropdown arrow)
+    "& .MuiSelect-icon": {
+        color: "#FFD700",
+    },
+
+    // Helper text
+    "& .MuiFormHelperText-root": {
+        color: "rgba(236,236,236,0.8)",
+    },
+})) as typeof TextField
 
 // ====== KONSTAN ID KATEGORI OBAT (Belanja Bakal Kesehatan) ======
 const OBAT_CATEGORY_ID = 9 as const
@@ -59,7 +108,6 @@ export default function InputSpendingPage() {
     const [selectedCompanyName, setSelectedCompanyName] = useState("")
     const [companySuggestions, setCompanySuggestions] = useState<Company[]>([])
 
-    // ✅ Tambahan: selector jenis upload (Umum / Obat) untuk Tab Import Excel (1 tombol)
     const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
 
     // ===== FORM SPENDING =====
@@ -68,10 +116,10 @@ export default function InputSpendingPage() {
         amount_spending: "",
         category_id: "",
         date_spending: "",
-        company_id: "", // ⬅️ tambahkan company untuk kategori obat
+        company_id: "",
     })
 
-    // ===== CATEGORY STATE =====
+    // ===== CATEGORY =====
     const [categoryName, setCategoryName] = useState("")
     const [categories, setCategories] = useState<Category[]>([])
 
@@ -91,21 +139,20 @@ export default function InputSpendingPage() {
     const [units, setUnits] = useState<Unit[]>([])
     const [unitsLoading, setUnitsLoading] = useState(false)
 
-    // ===== MEDICINES (dynamic list untuk kategori OBAT) =====
+    // ===== MEDICINES =====
     const [medicines, setMedicines] = useState<MedicineRow[]>([
         { name_medicine: "", quantity: "", name_unit_id: "", price: "" },
     ])
 
-
-
-    // Total harga obat (jumlahkan price tiap baris; kosong dianggap 0)
-    const totalObat = useMemo(() => {
-        return medicines.reduce((sum, r) => {
-            const clean = String(r.price ?? "").replace(/[^0-9]/g, "")
-            const val = clean ? Number(clean) : 0
-            return sum + val
-        }, 0)
-    }, [medicines])
+    const totalObat = useMemo(
+        () =>
+            medicines.reduce((sum, r) => {
+                const clean = String(r.price ?? "").replace(/[^0-9]/g, "")
+                const val = clean ? Number(clean) : 0
+                return sum + val
+            }, 0),
+        [medicines]
+    )
 
     const [alert, setAlert] = useState({
         open: false,
@@ -113,7 +160,6 @@ export default function InputSpendingPage() {
         severity: "success" as "success" | "error" | "info",
     })
 
-    // ✅ Tambahan: loading overlay khusus upload Excel
     const [uploading, setUploading] = useState(false)
 
     // ===== FETCHERS =====
@@ -133,7 +179,7 @@ export default function InputSpendingPage() {
         try {
             setCompanyLoading(true)
             const res = await axiosInstance.get("/api/CompanyMedicine", {
-                params: { search: searchText ?? search }
+                params: { search: searchText ?? search },
             })
             setCompanies(res.data)
         } catch (err) {
@@ -146,19 +192,14 @@ export default function InputSpendingPage() {
 
     useEffect(() => {
         if (search.length < 3) {
-            // kalau < 3 huruf, reset data (tampilkan semua)
             getCompanies("")
             return
         }
-
         if (typingTimeout) clearTimeout(typingTimeout)
-
         const timeout = setTimeout(() => {
             getCompanies(search)
-        }, 400) // debounce 400ms
-
+        }, 400)
         setTypingTimeout(timeout)
-
         return () => clearTimeout(timeout)
     }, [search])
 
@@ -187,11 +228,9 @@ export default function InputSpendingPage() {
         setForm({ ...form, [name]: value })
     }
 
-    // angka → "Rp 1.234.567"
     const formatRupiah = (num: number) =>
         new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
 
-    // ===== DYNAMIC MEDICINE LIST HANDLERS =====
     const handleAddMedicine = () => {
         setMedicines((prev) => [...prev, { name_medicine: "", quantity: "", name_unit_id: "", price: "" }])
     }
@@ -209,7 +248,6 @@ export default function InputSpendingPage() {
         setMedicines((prev) => {
             const next = [...prev]
             if (field === "price") {
-                // simpan numeric only (tanpa "Rp" & titik) di state
                 const clean = rawVal.replace(/[^0-9]/g, "")
                 next[index][field] = clean
             } else {
@@ -227,7 +265,6 @@ export default function InputSpendingPage() {
             return
         }
 
-        // Jika kategori = OBAT → company wajib, dan minimal 1 baris obat valid
         const isObat = String(form.category_id) === String(OBAT_CATEGORY_ID)
         if (isObat) {
             if (!form.company_id) {
@@ -235,7 +272,11 @@ export default function InputSpendingPage() {
                 return
             }
             const validRows = medicines.filter(
-                (m) => m.name_medicine && Number(String(m.quantity || "0")) > 0 && Number(String(m.price || "0")) > 0 && m.name_unit_id
+                (m) =>
+                    m.name_medicine &&
+                    Number(String(m.quantity || "0")) > 0 &&
+                    Number(String(m.price || "0")) > 0 &&
+                    m.name_unit_id
             )
             if (!validRows.length) {
                 setAlert({ open: true, message: "Tambahkan minimal 1 obat dengan data lengkap!", severity: "error" })
@@ -250,7 +291,6 @@ export default function InputSpendingPage() {
 
         try {
             setLoading(true)
-
             const payload: any = {
                 ...form,
                 amount_spending: isObat ? Number(totalObat) : Number(form.amount_spending),
@@ -260,39 +300,30 @@ export default function InputSpendingPage() {
             if (isObat) {
                 payload.company_id = Number(form.company_id)
                 payload.medicines = medicines
-                    .filter((m) => m.name_medicine && Number(String(m.quantity || "0")) > 0 && Number(String(m.price || "0")) > 0 && m.name_unit_id)
+                    .filter(
+                        (m) =>
+                            m.name_medicine &&
+                            Number(String(m.quantity || "0")) > 0 &&
+                            Number(String(m.price || "0")) > 0 &&
+                            m.name_unit_id
+                    )
                     .map((m) => ({
                         name_medicine: m.name_medicine,
                         quantity: Number(m.quantity),
                         name_unit_id: Number(m.name_unit_id),
-                        price: Number(String(m.price).replace(/[^0-9]/g, "")), // kirim angka murni
+                        price_per_item: Number(String(m.price).replace(/[^0-9]/g, "")), // ✅ ubah ke price_per_item
                     }))
             }
 
             const res = await axiosInstance.post("/api/inputSpendingDetail", payload)
             if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Data spending berhasil disimpan!",
-                    severity: "success",
-                })
-                // reset
-                setForm({
-                    name_spending: "",
-                    amount_spending: "",
-                    category_id: "",
-                    date_spending: "",
-                    company_id: "",
-                })
+                setAlert({ open: true, message: "✅ Data spending berhasil disimpan!", severity: "success" })
+                setForm({ name_spending: "", amount_spending: "", category_id: "", date_spending: "", company_id: "" })
                 setMedicines([{ name_medicine: "", quantity: "", name_unit_id: "", price: "" }])
             }
         } catch (err: any) {
             console.error(err)
-            setAlert({
-                open: true,
-                message: err?.response?.data || "Gagal menyimpan data!",
-                severity: "error",
-            })
+            setAlert({ open: true, message: err?.response?.data || "Gagal menyimpan data!", severity: "error" })
         } finally {
             setLoading(false)
         }
@@ -309,11 +340,7 @@ export default function InputSpendingPage() {
             setLoading(true)
             const res = await axiosInstance.post("/api/inputCategorySpending", { name_category: categoryName })
             if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Kategori spending baru berhasil disimpan!",
-                    severity: "success",
-                })
+                setAlert({ open: true, message: "✅ Kategori spending baru berhasil disimpan!", severity: "success" })
                 setCategoryName("")
                 getCategories()
             }
@@ -325,7 +352,7 @@ export default function InputSpendingPage() {
         }
     }
 
-    // ===== HANDLE EXCEL UPLOAD =====
+    // ===== EXCEL =====
     const handleExcelSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0]
         if (!f) return
@@ -337,7 +364,6 @@ export default function InputSpendingPage() {
             const sheet = workbook.SheetNames[0]
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheet])
 
-            // ✅ Validasi kolom wajib — tergantung JENIS UPLOAD
             const requiredColsUmum = ["name_spending", "category_id", "date_spending", "amount_spending"]
             const requiredColsObat = [
                 "name_spending",
@@ -363,7 +389,6 @@ export default function InputSpendingPage() {
                 return
             }
 
-            // ✅ Normalisasi data angka & tanggal biar preview lebih rapi
             const normalized = rawData.map((row: any) => {
                 const base: any = {
                     name_spending: row.name_spending || "",
@@ -392,13 +417,12 @@ export default function InputSpendingPage() {
         if (!file) return setAlert({ open: true, message: "📂 Pilih file Excel!", severity: "error" })
 
         try {
-            setUploading(true) // ✅ Overlay on
+            setUploading(true)
             const formData = new FormData()
             formData.append("file", file)
 
-            const url = jenisUpload === "umum"
-                ? "/api/uploadSpendingExcelGeneral"
-                : "/api/uploadSpendingExcelObat"
+            const url =
+                jenisUpload === "umum" ? "/api/uploadSpendingExcelGeneral" : "/api/uploadSpendingExcelObat"
 
             const res = await axiosInstance.post(url, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
@@ -410,11 +434,8 @@ export default function InputSpendingPage() {
                     message: res.data.message || "✅ Import Excel berhasil!",
                     severity: "success",
                 })
-                // Reset agar bisa pilih file lagi
                 setFile(null)
                 setPreviewData([])
-
-                // ⏱️ Jeda UX kecil lalu reload full page
                 setTimeout(() => {
                     window.location.reload()
                 }, 1200)
@@ -427,12 +448,10 @@ export default function InputSpendingPage() {
                 severity: "error",
             })
         } finally {
-            setUploading(false) // kalau gagal, overlay dimatikan
+            setUploading(false)
         }
     }
 
-
-    // ===== DOWNLOAD TEMPLATE EXCEL (sinkron dgn jenisUpload) =====
     const handleDownloadTemplate = () => {
         if (jenisUpload === "umum") {
             const rows = [
@@ -482,55 +501,40 @@ export default function InputSpendingPage() {
     const isObat = String(form.category_id) === String(OBAT_CATEGORY_ID)
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-[#E8EBEF] via-[#F9FAFB] to-[#E8EBEF] px-6 pt-32 pb-20">
+        <main className="min-h-screen font-serif text-[#ECECEC] px-6 md:px-20 py-24 bg-gradient-to-b from-[#0f141a]/70 via-[#1c2430]/80 to-[#12171d]/90 backdrop-blur-xl">
             {/* HEADER */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="text-center mb-14"
+                className="text-center mb-12 md:mb-16"
             >
-                <div className="flex justify-center items-center gap-6">
-                    <MonetizationOn sx={{ fontSize: 70, color: "#FFD700" }} />
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        INPUT SPENDING
-                    </h1>
-                </div>
-                <div>
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        RS BHAYANGKARA M HASAN PALEMBANG
-                    </h1>
-                </div>
-                <div className="w-36 h-[4px] bg-gradient-to-r from-[#2C3E50] to-[#FFD700] mx-auto mt-5 rounded-full"></div>
+                <h1 className="text-4xl md:text-6xl font-extrabold text-[#FFD700] drop-shadow-[0_2px_10px_rgba(255,215,0,0.2)]">
+                    INPUT PENGELUARAN RUMAH SAKIT
+                </h1>
+                <p className="text-gray-300 mt-3 text-base md:text-lg max-w-3xl mx-auto">
+                    Catat setiap pengeluaran dengan transparan dan akurat, termasuk obat & operasional.
+                </p>
             </motion.div>
 
             {/* TABS */}
-            <Box
-                sx={{
-                    width: "100%",
-                    maxWidth: "1100px",
-                    mb: 6,
-                    bgcolor: "rgba(255,255,255,0.95)",
-                    borderRadius: "24px",
-                    boxShadow: "0 15px 40px rgba(0,0,0,0.12)",
-                }}
-            >
+            <Box sx={{ width: "100%", maxWidth: "1100px", mb: 6, mx: "auto" }}>
                 <Tabs
                     value={tab}
                     onChange={(_, v) => setTab(v)}
                     centered
                     TabIndicatorProps={{
                         style: {
-                            background: "linear-gradient(90deg,#2C3E50 0%,#FFD700 100%)",
+                            background: "linear-gradient(90deg,#FFD700 0%,#B8860B 100%)",
                             height: "5px",
                             borderRadius: "5px",
                         },
                     }}
                 >
-                    <Tab icon={<MonetizationOn />} label="Input Spending" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<CategoryIcon />} label="Input Kategori" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<UploadFile />} label="Import Excel" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<Business />} label="Company Medicine" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
+                    <Tab icon={<MonetizationOn />} label="INPUT SPENDING" sx={{ color: "#FFD700", fontWeight: "bold" }} />
+                    <Tab icon={<CategoryIcon />} label="INPUT KATEGORI" sx={{ color: "#FFD700", fontWeight: "bold" }} />
+                    <Tab icon={<UploadFile />} label="IMPORT EXCEL" sx={{ color: "#FFD700", fontWeight: "bold" }} />
+                    <Tab icon={<Business />} label="COMPANY MEDICINE" sx={{ color: "#FFD700", fontWeight: "bold" }} />
                 </Tabs>
             </Box>
 
@@ -541,10 +545,10 @@ export default function InputSpendingPage() {
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16"
+                    className="w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-2xl border border-[#FFD700]/20 rounded-3xl p-8 md:p-10 shadow-[0_0_30px_rgba(255,215,0,0.1)]"
                 >
                     <form onSubmit={handleSubmitSpending} className="flex flex-col gap-8">
-                        <TextField
+                        <CustomTextField
                             label="Nama Pengeluaran"
                             name="name_spending"
                             fullWidth
@@ -553,16 +557,14 @@ export default function InputSpendingPage() {
                             required
                         />
 
-                        {/* ===== Jumlah (Rp) =====
-                - Jika kategori OBAT → readonly & otomatis dari total obat
-                - Selain OBAT → manual input seperti biasa */}
-                        <TextField
+                        {/* Jumlah (Rp) */}
+                        <CustomTextField
                             label="Jumlah (Rp)"
                             name="amount_spending"
                             fullWidth
                             value={
                                 isObat
-                                    ? (totalObat ? `Rp ${formatRupiah(totalObat)}` : "")
+                                    ? totalObat ? `Rp ${formatRupiah(totalObat)}` : ""
                                     : form.amount_spending
                                         ? "Rp " +
                                         new Intl.NumberFormat("id-ID", {
@@ -572,22 +574,20 @@ export default function InputSpendingPage() {
                                         : ""
                             }
                             onChange={(e) => {
-                                if (isObat) return // ignore; otomatis
+                                if (isObat) return
                                 const raw = e.target.value.replace(/[^0-9]/g, "")
                                 setForm({ ...form, amount_spending: raw })
                             }}
                             InputProps={{
                                 inputMode: "numeric",
                                 readOnly: isObat,
-                                sx: { fontSize: "1.2rem", height: 70, pl: 1, bgcolor: isObat ? "rgba(255,215,0,0.06)" : "inherit" },
+                                sx: { fontSize: "1.1rem", height: 64, pl: 1, bgcolor: isObat ? "rgba(255,215,0,0.06)" : "inherit" },
                             }}
-                            InputLabelProps={{
-                                sx: { fontSize: "1.1rem" },
-                            }}
+                            InputLabelProps={{ sx: { fontSize: "1.05rem" } }}
                             required={!isObat}
                         />
 
-                        <TextField
+                        <CustomTextField
                             select
                             label="Kategori"
                             name="category_id"
@@ -605,13 +605,13 @@ export default function InputSpendingPage() {
                             ) : (
                                 <MenuItem disabled>Memuat kategori...</MenuItem>
                             )}
-                        </TextField>
+                        </CustomTextField>
 
-                        {/* ======= Kalau kategori OBAT, tampilkan Company + Dynamic List Obat ======= */}
+                        {/* Kategori OBAT */}
                         {isObat && (
                             <>
                                 <div className="relative">
-                                    <TextField
+                                    <CustomTextField
                                         label="Perusahaan (min 3 huruf)"
                                         name="company_name"
                                         fullWidth
@@ -619,21 +619,13 @@ export default function InputSpendingPage() {
                                         onChange={(e) => {
                                             const val = e.target.value
                                             setSelectedCompanyName(val)
-
-                                            // reset company_id di form kalau ganti nama
                                             setForm({ ...form, company_id: "" })
 
-                                            if (!val.trim()) {
+                                            if (!val.trim() || val.trim().length < 3) {
                                                 setCompanySuggestions([])
                                                 return
                                             }
 
-                                            if (val.trim().length < 3) {
-                                                setCompanySuggestions([])
-                                                return
-                                            }
-
-                                            // debounce biar gak spam query
                                             if (typingTimeout) clearTimeout(typingTimeout)
                                             const timeout = setTimeout(async () => {
                                                 try {
@@ -648,12 +640,8 @@ export default function InputSpendingPage() {
                                             setTypingTimeout(timeout)
                                         }}
                                         required
-                                        InputProps={{
-                                            sx: { fontSize: "1.1rem", height: 70 },
-                                        }}
-                                        InputLabelProps={{
-                                            sx: { fontSize: "1.1rem" },
-                                        }}
+                                        InputProps={{ sx: { fontSize: "1.05rem", height: 64 } }}
+                                        InputLabelProps={{ sx: { fontSize: "1.05rem" } }}
                                         helperText={
                                             form.company_id
                                                 ? `Terpilih: ${selectedCompanyName} (ID: ${form.company_id})`
@@ -661,35 +649,37 @@ export default function InputSpendingPage() {
                                         }
                                     />
 
-                                    {/* 🔍 Dropdown hasil pencarian */}
+                                    {/* Dropdown hasil pencarian (dark) */}
                                     {companySuggestions.length > 0 && (
-                                        <div className="absolute z-10 bg-white border border-gray-300 rounded-lg shadow-lg mt-1 w-full max-h-56 overflow-auto">
+                                        <div className="absolute z-10 bg-[#0f141a] border border-[#FFD700]/30 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.35)] mt-1 w-full max-h-56 overflow-auto">
                                             {companySuggestions.map((c) => (
                                                 <div
                                                     key={c.id}
                                                     onClick={() => {
-                                                        // Saat diklik, tampilin nama tapi simpan ID
                                                         setSelectedCompanyName(c.name_company)
                                                         setForm({ ...form, company_id: String(c.id) })
                                                         setCompanySuggestions([])
                                                     }}
-                                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                                    className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm text-[#ECECEC]"
                                                 >
-                                                    <b>{c.name_company}</b> <span className="text-gray-500">({c.id})</span>
+                                                    <b className="text-[#FFD700]">{c.name_company}</b>{" "}
+                                                    <span className="text-gray-400">({c.id})</span>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
                                 </div>
 
-                                <Divider sx={{ my: 2 }} />
-                                <h2 className="text-2xl font-serif font-bold text-[#2C3E50]">🧪 Detail Obat yang Dibeli</h2>
-                                <p className="text-sm text-gray-600 mb-2">Harga per baris = total harga obat (bukan harga satuan). Total Rp otomatis dijumlahkan.</p>
+                                <Divider sx={{ my: 2, borderColor: "rgba(255,215,0,0.25)" }} />
+                                <h2 className="text-2xl font-serif font-bold text-[#FFD700]">🧪 Detail Obat yang Dibeli</h2>
+                                <p className="text-sm text-gray-300 mb-2">
+                                    Harga per baris = total harga obat (bukan harga satuan). Total otomatis dijumlahkan.
+                                </p>
 
                                 {medicines.map((m, i) => (
                                     <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                                         <div className="md:col-span-5">
-                                            <TextField
+                                            <CustomTextField
                                                 label={`Nama Obat #${i + 1}`}
                                                 value={m.name_medicine}
                                                 onChange={(e) => handleMedicineChange(i, "name_medicine", e.target.value)}
@@ -698,7 +688,7 @@ export default function InputSpendingPage() {
                                             />
                                         </div>
                                         <div className="md:col-span-2">
-                                            <TextField
+                                            <CustomTextField
                                                 label="Qty"
                                                 type="number"
                                                 value={m.quantity}
@@ -708,7 +698,7 @@ export default function InputSpendingPage() {
                                             />
                                         </div>
                                         <div className="md:col-span-2">
-                                            <TextField
+                                            <CustomTextField
                                                 select
                                                 label="Unit"
                                                 value={m.name_unit_id}
@@ -727,10 +717,10 @@ export default function InputSpendingPage() {
                                                 ) : (
                                                     <MenuItem disabled>Belum ada unit</MenuItem>
                                                 )}
-                                            </TextField>
+                                            </CustomTextField>
                                         </div>
                                         <div className="md:col-span-2">
-                                            <TextField
+                                            <CustomTextField
                                                 label="Harga (Rp)"
                                                 value={m.price ? `Rp ${formatRupiah(Number(String(m.price).replace(/[^0-9]/g, "")))}` : ""}
                                                 onChange={(e) => handleMedicineChange(i, "price", e.target.value)}
@@ -740,12 +730,7 @@ export default function InputSpendingPage() {
                                             />
                                         </div>
                                         <div className="md:col-span-1">
-                                            <Button
-                                                color="error"
-                                                variant="outlined"
-                                                onClick={() => handleRemoveMedicine(i)}
-                                                disabled={medicines.length === 1}
-                                            >
+                                            <Button color="error" variant="outlined" onClick={() => handleRemoveMedicine(i)} disabled={medicines.length === 1}>
                                                 Hapus
                                             </Button>
                                         </div>
@@ -753,18 +738,18 @@ export default function InputSpendingPage() {
                                 ))}
 
                                 <div className="flex items-center gap-3 mt-2">
-                                    <Button variant="outlined" onClick={handleAddMedicine}>
+                                    <Button variant="outlined" onClick={handleAddMedicine} sx={{ borderColor: "#FFD700", color: "#FFD700" }}>
                                         ➕ Tambah Obat
                                     </Button>
                                     <div className="ml-auto text-right">
-                                        <div className="text-sm text-gray-600">Total Obat</div>
-                                        <div className="text-2xl font-bold text-[#2C3E50]">Rp {formatRupiah(totalObat)}</div>
+                                        <div className="text-sm text-gray-300">Total Obat</div>
+                                        <div className="text-2xl font-bold text-[#FFD700]">Rp {formatRupiah(totalObat)}</div>
                                     </div>
                                 </div>
                             </>
                         )}
 
-                        <TextField
+                        <CustomTextField
                             label="Tanggal"
                             name="date_spending"
                             type="date"
@@ -775,8 +760,13 @@ export default function InputSpendingPage() {
                             required
                         />
 
-                        <Button type="submit" variant="contained" disabled={loading} sx={{ mt: 2, py: 2, fontSize: "1.1rem" }}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Data Spending"}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={loading}
+                            sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: "bold", py: 1.5, fontSize: "1.05rem" }}
+                        >
+                            {loading ? <CircularProgress size={24} sx={{ color: "#12171d" }} /> : "Simpan Data Spending"}
                         </Button>
                     </form>
                 </motion.div>
@@ -789,102 +779,91 @@ export default function InputSpendingPage() {
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16"
+                    className="w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-2xl border border-[#FFD700]/20 rounded-3xl p-8 md:p-10 shadow-[0_0_30px_rgba(255,215,0,0.1)]"
                 >
                     <form onSubmit={handleSubmitCategory} className="flex flex-col gap-8 mb-8">
-                        <TextField
+                        <CustomTextField
                             label="Nama Kategori Baru (Spending)"
                             fullWidth
                             value={categoryName}
                             onChange={(e) => setCategoryName(e.target.value)}
                             required
                         />
-                        <Button type="submit" variant="contained" disabled={loading}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Kategori"}
+                        <Button type="submit" variant="contained" disabled={loading} sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: "bold" }}>
+                            {loading ? <CircularProgress size={22} sx={{ color: "#12171d" }} /> : "Simpan Kategori"}
                         </Button>
                     </form>
 
-                    <Divider sx={{ mb: 3 }} />
+                    <Divider sx={{ mb: 3, borderColor: "rgba(255,215,0,0.25)" }} />
                     <div className="flex justify-between items-center mb-3">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <InfoOutlined sx={{ fontSize: 40 }} /> Daftar Kategori Spending
+                        <h2 className="text-2xl md:text-3xl font-serif font-bold text-[#FFD700] flex items-center gap-2">
+                            <InfoOutlined /> Daftar Kategori Spending
                         </h2>
-                        <Button onClick={getCategories} startIcon={<Refresh />} variant="outlined">
+                        <Button onClick={getCategories} startIcon={<Refresh />} variant="outlined" sx={{ borderColor: "#FFD700", color: "#FFD700" }}>
                             Refresh
                         </Button>
                     </div>
 
-                    <ul className="list-disc ml-6 text-xl text-[#3b4650] leading-relaxed">
-                        {categories.length > 0 ? (
-                            categories.map((cat) => <li key={cat.id}><b>{cat.name_category}</b></li>)
-                        ) : (
-                            <p>Belum ada kategori.</p>
-                        )}
+                    <ul className="list-disc ml-6 text-lg md:text-xl text-yellow-100/90 leading-relaxed">
+                        {categories.length > 0 ? categories.map((cat) => <li key={cat.id}><b>{cat.name_category}</b></li>) : <p className="text-gray-300">Belum ada kategori.</p>}
                     </ul>
                 </motion.div>
             )}
 
-            {/* TAB 3: IMPORT EXCEL (❗️Dipertahankan, hanya DITAMBAH selector jenis upload) */}
+            {/* TAB 3: IMPORT EXCEL */}
             {tab === 2 && (
                 <motion.div
                     key="excel"
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-16 text-center"
+                    className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-2xl border border-[#FFD700]/20 rounded-3xl p-8 md:p-10 shadow-[0_0_30px_rgba(255,215,0,0.1)] text-center"
                 >
-                    <CloudUpload sx={{ fontSize: 80, color: "#2C3E50" }} />
-                    <h2 className="text-4xl font-serif font-bold text-[#2C3E50] mt-4 mb-6">
-                        Upload File Excel Spending
-                    </h2>
+                    <CloudUpload sx={{ fontSize: 80, color: "#FFD700" }} />
+                    <h2 className="text-3xl font-serif font-bold text-[#FFD700] mt-3 mb-6">Upload File Excel Spending</h2>
 
-                    {/* ✅ Tambahan: pilih jenis upload */}
-                    <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-6">
-                        <div className="md:col-span-1 text-left md:text-right pr-0 md:pr-4 font-semibold text-[#2C3E50]">
-                            Jenis Upload
-                        </div>
+                    {/* Jenis upload */}
+                    <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-6">
+                        <div className="md:col-span-1 text-left md:text-right pr-0 md:pr-4 font-semibold text-[#FFD700]">Jenis Upload</div>
                         <div className="md:col-span-2">
-                            <TextField
-                                select
-                                fullWidth
-                                value={jenisUpload}
-                                onChange={(e) => setJenisUpload(e.target.value as "umum" | "obat")}
-                            >
+                            <CustomTextField select fullWidth value={jenisUpload} onChange={(e) => setJenisUpload(e.target.value as "umum" | "obat")}>
                                 <MenuItem value="umum">Spending Umum (tanpa obat)</MenuItem>
                                 <MenuItem value="obat">Spending Obat (kategori 9)</MenuItem>
-                            </TextField>
+                            </CustomTextField>
                         </div>
                     </div>
 
-                    <div className="flex justify-center gap-4 mb-8">
-                        <Button component="label" variant="outlined" startIcon={<InsertDriveFile />} sx={{ fontWeight: "bold", px: 4 }}>
+                    <div className="flex justify-center gap-4 mb-8 flex-wrap">
+                        <Button component="label" variant="outlined" startIcon={<InsertDriveFile />} sx={{ borderColor: "#FFD700", color: "#FFD700", fontWeight: "bold" }}>
                             Pilih File Excel
                             <input hidden type="file" accept=".xlsx,.xls" onChange={handleExcelSelect} />
                         </Button>
-                        <Button onClick={handleDownloadTemplate} variant="outlined" startIcon={<Download />} sx={{ fontWeight: "bold", px: 4 }}>
+                        <Button onClick={handleDownloadTemplate} variant="outlined" startIcon={<Download />} sx={{ borderColor: "#FFD700", color: "#FFD700", fontWeight: "bold" }}>
                             Download Template {jenisUpload === "umum" ? "Umum" : "Obat"}
                         </Button>
                     </div>
 
-                    {file && <p className="text-lg text-[#2C3E50] mb-6">📂 {file.name}</p>}
+                    {file && <p className="text-yellow-100/90 mb-4">📂 {file.name}</p>}
 
                     {previewData.length > 0 && (
-                        <Paper sx={{ maxHeight: 400, overflow: "auto", mb: 4 }}>
+                        <Paper sx={{ maxHeight: 420, overflow: "auto", mb: 4, background: "transparent", borderRadius: "16px" }}>
                             <Table stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        {Object.keys(previewData[0]).map((key) => (
-                                            <TableCell key={key} sx={{ fontWeight: "bold", background: "#2C3E50", color: "white" }}>
-                                                {key}
+                                        {Object.keys(previewData[0]).map((k) => (
+                                            <TableCell key={k} sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>
+                                                {k}
                                             </TableCell>
                                         ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {previewData.map((row, i) => (
+                                    {previewData.map((r, i) => (
                                         <TableRow key={i}>
-                                            {Object.values(row).map((val, j) => (
-                                                <TableCell key={j}>{String(val)}</TableCell>
+                                            {Object.values(r).map((v, j) => (
+                                                <TableCell key={j} sx={{ color: "#ECECEC" }}>
+                                                    {String(v)}
+                                                </TableCell>
                                             ))}
                                         </TableRow>
                                     ))}
@@ -893,28 +872,33 @@ export default function InputSpendingPage() {
                         </Paper>
                     )}
 
-                    <Button onClick={handleUploadExcel} variant="contained" disabled={previewData.length === 0}>
-                        {uploading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel Spending"}
+                    <Button
+                        onClick={handleUploadExcel}
+                        variant="contained"
+                        disabled={previewData.length === 0 || uploading}
+                        sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: "bold" }}
+                    >
+                        {uploading ? <CircularProgress size={26} sx={{ color: "#12171d" }} /> : "Import Data Excel Spending"}
                     </Button>
                 </motion.div>
             )}
 
-            {/* TAB 4: COMPANY MEDICINE (INPUT + PAGINATION) */}
+            {/* TAB 4: COMPANY MEDICINE */}
             {tab === 3 && (
                 <motion.div
                     key="company"
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-12"
+                    className="w-full max-w-5xl mx-auto bg-white/10 backdrop-blur-2xl border border-[#FFD700]/20 rounded-3xl p-8 md:p-10 shadow-[0_0_30px_rgba(255,215,0,0.1)]"
                 >
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
+                        <h2 className="text-3xl font-serif font-bold text-[#FFD700] flex items-center gap-2">
                             <Business /> Input & Daftar Company Medicine
                         </h2>
                     </div>
 
-                    {/* ====== FORM INPUT COMPANY ====== */}
+                    {/* Form input company */}
                     <form
                         onSubmit={async (e) => {
                             e.preventDefault()
@@ -939,7 +923,7 @@ export default function InputSpendingPage() {
                         }}
                         className="flex flex-col md:flex-row gap-4 mb-8"
                     >
-                        <TextField
+                        <CustomTextField
                             label="Nama Perusahaan Baru"
                             fullWidth
                             value={formCompany}
@@ -950,46 +934,37 @@ export default function InputSpendingPage() {
                             type="submit"
                             variant="contained"
                             disabled={companyLoading}
-                            sx={{ px: 6, fontWeight: "bold" }}
+                            sx={{ bgcolor: "#FFD700", color: "#12171d", fontWeight: "bold", px: 6 }}
                         >
-                            {companyLoading ? <CircularProgress size={24} /> : "Simpan"}
+                            {companyLoading ? <CircularProgress size={22} sx={{ color: "#12171d" }} /> : "Simpan"}
                         </Button>
                     </form>
 
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <Business /> Input & Daftar Company Medicine
-                        </h2>
-                        <div className="flex gap-2">
-                            <TextField
-                                size="small"
-                                placeholder="Cari perusahaan..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
+                    {/* Search */}
+                    <div className="flex justify-end mb-4">
+                        <CustomTextField size="small" placeholder="Cari perusahaan..." value={search} onChange={(e) => setSearch(e.target.value)} />
                     </div>
 
-                    {/* ====== TABLE COMPANY LIST ====== */}
-                    <Paper sx={{ width: "100%", overflow: "hidden" }}>
+                    {/* Tabel */}
+                    <Paper sx={{ width: "100%", overflow: "hidden", background: "transparent", borderRadius: "16px" }}>
                         <Table stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: "bold" }}>No</TableCell>
-                                    <TableCell sx={{ fontWeight: "bold" }}>Nama Perusahaan</TableCell>
-                                    <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
+                                    <TableCell sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>No</TableCell>
+                                    <TableCell sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>Nama Perusahaan</TableCell>
+                                    <TableCell sx={{ fontWeight: "bold", background: "#FFD700", color: "#12171d" }}>Created At</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {companyLoading ? (
                                     <TableRow>
                                         <TableCell colSpan={3}>
-                                            <div className="w-full flex justify-center py-6"><CircularProgress /></div>
+                                            <div className="w-full flex justify-center py-6"><CircularProgress sx={{ color: "#FFD700" }} /></div>
                                         </TableCell>
                                     </TableRow>
                                 ) : pagedCompanies.length > 0 ? (
-                                    pagedCompanies.map((c, idx) => (
-                                        <TableRow key={c.id}>
+                                    pagedCompanies.map((c) => (
+                                        <TableRow key={c.id} sx={{ "& td": { color: "#ECECEC" } }}>
                                             <TableCell>{c.id}</TableCell>
                                             <TableCell>{c.name_company}</TableCell>
                                             <TableCell>{new Date(c.created_at).toLocaleString("id-ID")}</TableCell>
@@ -997,11 +972,10 @@ export default function InputSpendingPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={3}>Belum ada data company.</TableCell>
+                                        <TableCell colSpan={3} sx={{ color: "#ECECEC" }}>Belum ada data company.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
-
                         </Table>
                     </Paper>
 
@@ -1010,20 +984,28 @@ export default function InputSpendingPage() {
                             count={pageCount}
                             page={page}
                             onChange={(_, v) => setPage(v)}
-                            color="primary"
                             showFirstButton
                             showLastButton
+                            sx={{
+                                "& .MuiPaginationItem-root": { color: "#FFD700" },
+                                "& .MuiPaginationItem-root.Mui-selected": {
+                                    backgroundColor: "#FFD700",
+                                    color: "#12171d",
+                                },
+                                "& .MuiPaginationItem-root:hover": { backgroundColor: "rgba(255,215,0,0.12)" },
+                            }}
                         />
                     </div>
                 </motion.div>
             )}
 
-            {/* === OVERLAY LOADING (FULL SCREEN, SEMI-TRANSPARAN + BLUR) === */}
+            {/* OVERLAY LOADING */}
             {uploading && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-white/60 shadow-xl border border-white/40">
-                        <CircularProgress size={44} />
-                        <p className="text-lg font-medium text-[#2C3E50]">⏳ Sedang memproses, tunggu sebentar…</p>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-md">
+                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-[#12171d]/80 border border-[#FFD700]/30 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                        <CircularProgress size={44} sx={{ color: "#FFD700" }} />
+                        <p className="text-lg text-[#FFD700]">Mengimpor data Excel…</p>
+                        <p className="text-sm text-gray-400">Tunggu sebentar ya</p>
                     </div>
                 </div>
             )}
@@ -1035,10 +1017,10 @@ export default function InputSpendingPage() {
                 onClose={() => setAlert({ ...alert, open: false })}
                 anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
             >
-                <Alert severity={alert.severity} variant="filled" sx={{ fontSize: "1.05rem", borderRadius: "10px" }}>
+                <Alert severity={alert.severity} variant="filled" sx={{ fontSize: "1rem", borderRadius: "10px" }}>
                     {alert.message}
                 </Alert>
             </Snackbar>
-        </div>
+        </main>
     )
 }

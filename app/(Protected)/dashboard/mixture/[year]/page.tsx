@@ -1,6 +1,5 @@
 "use client"
 
-import Footer from "../../../../../components/footer"
 import { useEffect, useMemo, useState, forwardRef } from "react"
 import axiosInstance from "@/lib/axiosInstance"
 import { useParams } from "next/navigation"
@@ -692,8 +691,6 @@ export default function FinanceMonthly() {
                     )}
                 </DialogContent>
             </Dialog>
-
-            <Footer />
         </div>
     )
 }
