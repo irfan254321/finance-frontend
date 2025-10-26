@@ -3,7 +3,7 @@
 import { ReactNode, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
-import FooterLogin from "@/components/footerLogin"
+import FooterLogin from "@/components/footer"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()

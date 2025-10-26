@@ -3,7 +3,6 @@ import "./globals.css"
 import { ReactNode } from "react"
 import { AuthProvider } from "@/context/AuthContext"
 import NavbarSwitcher from "@/components/navbarSwitcher" // ✅ client component
-import FooterLogout from "@/components/footer"
 
 export const metadata = {
   title: "RS Bhayangkara M Hasan Palembang",

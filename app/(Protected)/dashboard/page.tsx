@@ -8,7 +8,6 @@ import { TextGenerateEffect } from "../../../components/ui/text-generate-effect"
 export default function DashboardPage() {
   return (
     <main className="relative px-6 md:px-20 py-20 mt-24 font-serif text-[#ECECEC] leading-relaxed min-h-screen bg-gradient-to-b from-[#0f141a]/70 via-[#1c2430]/80 to-[#12171d]/90 backdrop-blur-xl">
-
       {/* ===== HERO INTRO ===== */}
       <section className="relative text-center mb-24">
         <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-3xl blur-2xl" />

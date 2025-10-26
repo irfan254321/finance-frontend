@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 
 export default function HomePage() {
+  const { user, loading } = useAuth() // 🔹 ini loading untuk session
   const router = useRouter()
   const [stage, setStage] = useState<"logo" | "text" | "button">("logo")
-  const [loading, setLoading] = useState(false)
+  const [isButtonLoading, setIsButtonLoading] = useState(false) // 🔹 ganti nama state lokal
 
-  // Transisi antar tahap
+  // Transisi antar tahap animasi
   useEffect(() => {
     const timer1 = setTimeout(() => setStage("text"), 2000)
     const timer2 = setTimeout(() => setStage("button"), 3700)
@@ -19,16 +21,31 @@ export default function HomePage() {
     }
   }, [])
 
+  // Auto-redirect kalau sudah login
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard")
+    }
+  }, [loading, user, router])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-white text-xl">
+        Checking session...
+      </div>
+    )
+  }
+
   const handleClick = () => {
-    setLoading(true)
+    setIsButtonLoading(true)
     setTimeout(() => {
       router.push("/login")
-    }, 2000) // delay 2 detik biar ada transisi smooth
+    }, 2000)
   }
 
   return (
     <div className="relative w-full h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#0b0f16] to-[#121826] overflow-hidden">
-      {/* 🌟 LOGO STAGE */}
+      {/* 🌟 LOGO */}
       <motion.div
         key="logo"
         className="z-20 flex flex-col items-center text-center"
@@ -65,7 +82,7 @@ export default function HomePage() {
         </motion.h2>
       </motion.div>
 
-      {/* 🌟 TEXT STAGE */}
+      {/* 🌟 TEXT */}
       <AnimatePresence>
         {stage !== "logo" && (
           <motion.div
@@ -84,14 +101,14 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* 🌟 BUTTON STAGE */}
+      {/* 🌟 BUTTON */}
       <AnimatePresence>
         {stage === "button" && (
           <motion.button
             key="button"
-            disabled={loading}
+            disabled={isButtonLoading}
             className={`z-20 mt-10 px-8 py-4 font-serif text-lg md:text-xl font-semibold rounded-xl shadow-[0_0_20px_rgba(255,215,0,0.4)] transition-all duration-300 flex items-center justify-center gap-3 ${
-              loading
+              isButtonLoading
                 ? "bg-[#FFD700]/80 text-[#1a2732] cursor-not-allowed"
                 : "bg-[#FFD700] text-[#1a2732] hover:bg-[#ffde47] hover:scale-105"
             }`}
@@ -101,7 +118,7 @@ export default function HomePage() {
             transition={{ duration: 1.2, ease: "easeOut" }}
             onClick={handleClick}
           >
-            {loading ? (
+            {isButtonLoading ? (
               <>
                 <motion.div
                   className="w-6 h-6 border-2 border-[#1a2732] border-t-transparent rounded-full animate-spin"
@@ -118,7 +135,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ✨ Subtle background glow */}
+      {/* ✨ BACKGROUND GLOW */}
       <div className="absolute -z-10 inset-0 bg-gradient-radial from-[#FFD700]/10 via-transparent to-transparent opacity-30 blur-3xl"></div>
     </div>
   )
