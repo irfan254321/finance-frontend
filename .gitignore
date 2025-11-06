@@ -44,3 +44,6 @@ next-env.d.ts
 #IGNORE PROTECTED FILE
 /components/ProtectedRoute.tsx
 /context/*
+
+#dockerfile
+Dockerfile
