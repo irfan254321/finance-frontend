@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g fill="#FF7F50">
+  <!-- tie -->
+  <path d="M28 8h8l4 8-8 8-8-8z"/>
+  <path d="M28 24l8 8-6 20h-4l-6-20z"/>
+</g>
+</svg>

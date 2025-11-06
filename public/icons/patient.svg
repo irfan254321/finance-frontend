@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g fill="#FFD700">
+  <!-- patient bust -->
+  <circle cx="32" cy="22" r="10"/>
+  <path d="M12 50c3-12 15-16 20-16s17 4 20 16v4H12z"/>
+</g>
+</svg>

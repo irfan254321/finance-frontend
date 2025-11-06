@@ -1,4 +1,5 @@
-// ❌ TIDAK ADA "use client" DI SINI
+
+
 import "./globals.css"
 import { ReactNode } from "react"
 import { AuthProvider } from "@/context/AuthContext"
