@@ -3,51 +3,142 @@
 import { motion } from "framer-motion"
 import { Button, CircularProgress } from "@mui/material"
 import CustomTextField from "@/components/ui/CustomTextField"
+import TabWrapper from "@/components/tabWrapper"
 
-// 🧩 Tab Input Kategori
-// Menangani input kategori pemasukan
-export default function TabCategory({ categoryName, setCategoryName, handleSubmitCategory, loading, categories }: any) {
+export default function TabCategory({
+  categoryName,
+  setCategoryName,
+  handleSubmitCategory,
+  loading,
+  categories = [],
+}: any) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-white/10 backdrop-blur-2xl border border-[#FFD700]/20 rounded-3xl p-10 shadow-[0_0_25px_rgba(255,215,0,0.08)]"
     >
-      {/* Form Tambah Kategori */}
-      <form onSubmit={handleSubmitCategory} className="flex flex-col gap-8 mb-8">
-        <CustomTextField
-          label="Nama Kategori Baru"
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-          required
-        />
-
-        <Button
-          type="submit"
-          disabled={loading}
-          sx={{
-            bgcolor: "#FFD700",
-            color: "#12171d",
-            fontWeight: "bold",
-            py: 1.6,
-            fontSize: "1.1rem",
-            borderRadius: "10px",
-            boxShadow: "0 0 20px rgba(255,215,0,0.4)",
-            "&:hover": { bgcolor: "#FFE55C", boxShadow: "0 0 40px rgba(255,215,0,0.6)" },
-          }}
+      <TabWrapper>
+        {/* FORM INPUT */}
+        <form
+          onSubmit={handleSubmitCategory}
+          className="flex flex-col gap-6 mb-10"
         >
-          {loading ? <CircularProgress size={24} sx={{ color: "#12171d" }} /> : "Simpan Kategori"}
-        </Button>
-      </form>
+          <CustomTextField
+            label="Nama Kategori Baru"
+            value={categoryName}
+            onChange={(e) => setCategoryName(e.target.value)}
+            required
+          />
 
-      {/* Daftar Kategori */}
-      <p className="text-[#FFD700] font-semibold mb-3 text-xl">Daftar Kategori:</p>
-      <ul className="space-y-2 text-gray-200 text-base">
-        {categories.map((c: any) => (
-          <li key={c.id}>• {c.name_category}</li>
-        ))}
-      </ul>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+            sx={{
+              bgcolor: "#FFD700",
+              color: "#12171d",
+              fontWeight: "bold",
+              py: 1.6,
+              borderRadius: "10px",
+              fontSize: "1.05rem",
+              "&:hover": { bgcolor: "#FFE55C" },
+            }}
+          >
+            {loading ? (
+              <CircularProgress size={22} sx={{ color: "#12171d" }} />
+            ) : (
+              "Simpan Kategori"
+            )}
+          </Button>
+        </form>
+
+        {/* TITLE */}
+        <p className="text-[#FFD700] font-semibold mb-6 text-xl tracking-wide">
+          Daftar Kategori
+        </p>
+
+        {/* LIST CATEGORY CARDS */}
+        {categories.length === 0 ? (
+          <p className="text-gray-400 italic">Belum ada kategori.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {categories.map((c: any) => {
+              const firstLetter = (c.name_category || "?")
+                .toString()
+                .trim()
+                .charAt(0)
+                .toUpperCase()
+
+              return (
+                <motion.div
+                  key={c.id}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  transition={{ duration: 0.25 }}
+                  className="
+                    relative group
+                    bg-white/5 
+                    border border-[#FFD700]/20 
+                    rounded-2xl 
+                    p-5 
+                    min-h-[110px]
+                    backdrop-blur-xl
+                    shadow-[0_0_20px_rgba(0,0,0,0.25)]
+                    hover:border-[#FFD700]/40
+                    hover:shadow-[0_0_30px_rgba(255,215,0,0.20)]
+                    transition-all duration-200
+                    flex gap-4 items-center
+                  "
+                >
+                  {/* SHINE EFFECT */}
+                  <div
+                    className="
+                      pointer-events-none
+                      absolute inset-y-0 -left-1/2
+                      w-1/2
+                      bg-gradient-to-r from-transparent via-white/40 to-transparent
+                      opacity-0
+                      group-hover:opacity-70
+                      transform
+                      -translate-x-full
+                      group-hover:translate-x-full
+                      transition-all duration-700 ease-out
+                    "
+                  />
+
+                  {/* ICON ROUND */}
+                  <div
+                    className="
+                      flex items-center justify-center
+                      h-12 w-12
+                      rounded-full
+                      bg-[#FFD700]/20
+                      border border-[#FFD700]/50
+                      text-[#FFD700]
+                      font-bold text-lg
+                      flex-shrink-0
+                      shadow-[0_0_10px_rgba(255,215,0,0.3)]
+                    "
+                  >
+                    {firstLetter}
+                  </div>
+
+                  {/* TEXT */}
+                  <div className="flex flex-col">
+                    <span className="text-gray-200 font-semibold text-base leading-tight">
+                      {c.name_category}
+                    </span>
+
+                    <span className="text-[#FFD700]/70 text-sm">
+                      ID: {c.id}
+                    </span>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
+      </TabWrapper>
     </motion.div>
   )
 }
