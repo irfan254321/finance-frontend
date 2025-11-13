@@ -6,7 +6,6 @@ import NavbarAdmin from "@/components/navbarAdmin"
 
 export default function NavbarSwitcher() {
   const { user, loading } = useAuth()
-  console.log("🔍 NavbarSwitcher:", { user, loading })
 
   // 🌀 Masih loading → jangan render apapun
   if (loading) return null

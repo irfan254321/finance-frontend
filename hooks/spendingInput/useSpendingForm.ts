@@ -162,6 +162,7 @@ export function useSpendingForm() {
     totalObat,
     loading,
     alert,
+    setMedicines,
     setAlert,
     handleChange,
     handleMedicineChange,

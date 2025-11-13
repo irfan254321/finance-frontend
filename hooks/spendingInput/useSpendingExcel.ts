@@ -8,12 +8,18 @@ export function useSpendingExcel() {
   const [previewData, setPreviewData] = useState<any[]>([])
   const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
   const [uploading, setUploading] = useState(false)
-  const [alert, setAlert] = useState({ open: false, message: "", severity: "success" as "success" | "error" })
+  const [alert, setAlert] = useState({
+    open: false,
+    message: "",
+    severity: "success" as "success" | "error",
+  })
 
+  // 📥 Preview file Excel
   const handleExcelSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
     setFile(f)
+
     const reader = new FileReader()
     reader.onload = (event: any) => {
       const wb = XLSX.read(event.target.result, { type: "binary" })
@@ -24,23 +30,60 @@ export function useSpendingExcel() {
     reader.readAsBinaryString(f)
   }
 
+  // 🚀 Upload ke backend
   const handleUploadExcel = async () => {
-    if (!file) return setAlert({ open: true, message: "Pilih file dulu!", severity: "error" })
+    if (!file) {
+      setAlert({ open: true, message: "Pilih file dulu!", severity: "error" })
+      return
+    }
+
     try {
       setUploading(true)
+
       const formData = new FormData()
-      formData.append("file", file)
-      const url = jenisUpload === "umum" ? "/api/uploadSpendingExcelGeneral" : "/api/uploadSpendingExcelObat"
-      await axiosInstance.post(url, formData)
-      setAlert({ open: true, message: "✅ Upload berhasil!", severity: "success" })
+      formData.append("file", file) // ⚠️ harus sama dengan upload.single("file")
+      formData.append("jenisUpload", jenisUpload)
+
+      const url =
+        jenisUpload === "umum"
+          ? "/api/uploadSpendingExcelGeneral"
+          : "/api/uploadSpendingExcelObat"
+
+      const res = await axiosInstance.post(url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+
+      // kalau backend balikin preview data
+      if (res.data?.preview) setPreviewData(res.data.preview)
+
+      setAlert({
+        open: true,
+        message: "✅ Upload Excel berhasil!",
+        severity: "success",
+      })
       setFile(null)
-      setPreviewData([])
-    } catch {
-      setAlert({ open: true, message: "Gagal upload!", severity: "error" })
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "❌ Gagal upload Excel!"
+      setAlert({ open: true, message: msg, severity: "error" })
     } finally {
       setUploading(false)
     }
   }
 
-  return { file, previewData, jenisUpload, setJenisUpload, uploading, alert, setAlert, handleExcelSelect, handleUploadExcel }
+  return {
+    file,
+    setFile,
+    previewData,
+    setPreviewData,
+    jenisUpload,
+    setJenisUpload,
+    uploading,
+    alert,
+    setAlert,
+    handleExcelSelect,
+    handleUploadExcel,
+  }
 }

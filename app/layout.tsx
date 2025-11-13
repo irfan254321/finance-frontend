@@ -20,7 +20,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-[#1a2732] text-white min-h-screen">
         <AuthProvider>
           {/* ✅ Client component ditaruh di dalam */}
-          <NavbarSwitcher />
           <main>{children}</main>
         </AuthProvider>
       </body>

@@ -107,6 +107,8 @@ export function useIncomeExcel(categories: CategoryIncome[]) {
     previewData,
     uploading,
     alert,
+    setFile,
+    setPreviewData,
     setAlert,
     handleExcelSelect,
     handleUploadExcel,
