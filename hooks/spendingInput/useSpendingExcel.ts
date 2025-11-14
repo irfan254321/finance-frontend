@@ -6,29 +6,61 @@ import axiosInstance from "@/lib/axiosInstance"
 // ======================================================
 // 🧹 SANITASI NILAI EXCEL
 // ======================================================
-function sanitizeValue(v: any) {
+function sanitizeValue(v: string | number | null | undefined) {
   if (v === null || v === undefined) return null
-  if (v === "-" || v === "" || v === " ") return null
 
-  // Jika string angka → convert
-  if (typeof v === "string" && !isNaN(Number(v))) {
-    v = Number(v)
-  }
+  if (typeof v === "string") v = v.trim()
 
-  // Excel Serial Date
+  if (v === "-" || v === "") return null
+
+  // 🎯 1. Excel Serial Date (WAJIB DIDETECTION DULU)
   if (typeof v === "number" && v > 30000 && v < 60000) {
     const excelDate = new Date((v - 25569) * 86400 * 1000)
     return excelDate.toISOString().slice(0, 10)
   }
 
-  // Format dd/mm/yyyy → yyyy-mm-dd
+  // 🎯 2. Format dd/mm/yyyy → yyyy-mm-dd
   if (typeof v === "string" && v.includes("/")) {
     const [d, m, y] = v.split("/")
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
+    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`
   }
+
+  // 🎯 3. Jika angka biasa
+  if (!isNaN(Number(v))) {
+    return Number(v)
+  }
+
+  if (typeof v === "string") {
+  v = v.trim()
+  v = v.replace(/^\-+/, "")   // buang minus di awal
+}
+
 
   return v
 }
+
+
+
+function sanitizePriceObat(v: any) {
+  if (v === null || v === undefined) return 0
+  if (v === "-" || v === "" || v === " ") return 0
+
+  // Excel NaN / Invalid Number
+  if (typeof v === "number" && isNaN(v)) return 0
+
+  // Hapus format ribuan
+  if (typeof v === "string") {
+    const clean = v.replace(/[^0-9]/g, "")
+    if (clean === "") return 0
+    if (isNaN(Number(clean))) return null
+    return Number(clean)
+  }
+
+  if (typeof v === "number") return v
+
+  return null
+}
+
 
 // ======================================================
 // 🧹 SANITASI ROW UMUM
@@ -42,6 +74,8 @@ function sanitizeRowGeneral(r: any) {
   }
 }
 
+
+
 // ======================================================
 // 🧹 SANITASI ROW OBAT
 // ======================================================
@@ -54,7 +88,7 @@ function sanitizeMedicineRow(r: any) {
     name_medicine: sanitizeValue(r.name_medicine),
     quantity: sanitizeValue(r.quantity),
     unit_id: sanitizeValue(r.unit_id),
-    price_per_item: sanitizeValue(r.price_per_item),
+    price_per_item: sanitizePriceObat(r.price_per_item),
   }
 }
 
@@ -85,8 +119,8 @@ function isValidMedicine(r: any) {
     r.date_spending &&
     r.name_medicine &&
     r.quantity > 0 &&
-    r.unit_id &&
-    r.price_per_item > 0
+    typeof r.unit_id === "number" && r.unit_id >= 0 &&
+    typeof r.price_per_item === "number"
   )
 }
 

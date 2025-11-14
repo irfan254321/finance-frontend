@@ -1,15 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Avatar, IconButton, Menu, MenuItem, Divider } from "@mui/material"
 import { Menu as MenuIcon, Close as CloseIcon, ExpandMore, ExpandLess, ChevronRight } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/context/AuthContext"
+import { useRouter } from "next/navigation"
 
 export default function NavbarAdmin() {
   const router = useRouter()
   const { user, logout } = useAuth()
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -18,6 +20,7 @@ export default function NavbarAdmin() {
   const toggleMobile = () => setMobileOpen(!mobileOpen)
   const toggleMenu = (menu: string) => setOpenMenu(openMenu === menu ? null : menu)
   const toggleSub = (key: string) => setOpenSub(openSub === key ? null : key)
+
   const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget)
   const handleMenuClose = () => setAnchorEl(null)
 
@@ -53,18 +56,20 @@ export default function NavbarAdmin() {
   return (
     <nav className="fixed top-0 left-0 w-full z-[9999] text-[#EBD77A] font-serif bg-gradient-to-br from-[#1a2732]/97 via-[#2C3E50]/95 to-[#1a2732]/97 backdrop-blur-lg border-b border-[#EBD77A]/15 shadow-[0_2px_25px_rgba(0,0,0,0.4)]">
       <div className="flex justify-between items-center px-6 md:px-16 h-20">
-        {/* ===== LOGO ===== */}
-        <h1
-          onClick={() => router.push("/dashboard")}
+
+        {/* LOGO */}
+        <Link
+          href="/dashboard"
           className="relative text-xl font-bold cursor-pointer select-none hover:text-[#FFD970] transition-all duration-200 tracking-wide group"
         >
           RS BHAYANGKARA
           <span className="absolute left-0 -bottom-1 h-[2px] w-0 bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
-        </h1>
+        </Link>
 
-        {/* ===== DESKTOP MENU ===== */}
+        {/* DESKTOP MENU */}
         <div className="hidden md:flex items-center space-x-10 text-[15px] relative">
-          {/* ===== FINANCE ===== */}
+
+          {/* FINANCE */}
           <div className="relative">
             <button
               onClick={() => toggleMenu("finance")}
@@ -74,7 +79,6 @@ export default function NavbarAdmin() {
                 }`}
             >
               Finance
-              <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
             </button>
 
             <AnimatePresence>
@@ -90,13 +94,11 @@ export default function NavbarAdmin() {
                     <div key={item.label} className="relative group">
                       <button
                         onClick={() => toggleSub(item.label)}
-                        className="flex justify-between items-center w-full text-left px-3 py-2 text-[#EDE3B5] font-medium rounded-lg cursor-pointer select-none hover:bg-white/5 hover:text-[#FFD970] transition-all duration-200 ease-out"
+                        className="flex justify-between items-center w-full text-left px-3 py-2 text-[#EDE3B5] font-medium rounded-lg hover:bg-white/5 hover:text-[#FFD970]"
                       >
                         {item.label}
                         <ChevronRight
-                          className={`transition-transform ${openSub === item.label
-                            ? "rotate-90 text-[#FFD970]"
-                            : "text-[#EBD77A]/70"
+                          className={`transition-transform ${openSub === item.label ? "rotate-90 text-[#FFD970]" : "text-[#EBD77A]/70"
                             }`}
                           fontSize="small"
                         />
@@ -109,24 +111,25 @@ export default function NavbarAdmin() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 10 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute top-0 left-full ml-3 min-w-[130px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl shadow-[0_6px_20px_rgba(235,215,122,0.15)] p-2 space-y-1"
+                            className="absolute top-0 left-full ml-3 min-w-[130px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-2 space-y-1"
                           >
                             {[2024, 2025, 2026].map((year) => (
-                              <button
+                              <Link
                                 key={year}
+                                href={`${item.route}/${year}`}
                                 onClick={() => {
-                                  router.push(`${item.route}/${year}`)
                                   setOpenMenu(null)
                                   setOpenSub(null)
                                 }}
-                                className="block w-full text-left px-3 py-1.5 text-sm text-[#F6F1D3] cursor-pointer select-none hover:text-[#FFD970] hover:bg-white/10 rounded-md transition-all ease-out"
+                                className="block w-full text-left px-3 py-1.5 text-sm text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
                               >
                                 📆 {year}
-                              </button>
+                              </Link>
                             ))}
                           </motion.div>
                         )}
                       </AnimatePresence>
+
                     </div>
                   ))}
                 </motion.div>
@@ -134,17 +137,16 @@ export default function NavbarAdmin() {
             </AnimatePresence>
           </div>
 
-          {/* ===== MANAGE ===== */}
+          {/* MANAGE */}
           <div className="relative">
             <button
               onClick={() => toggleMenu("manage")}
-              className={`relative group px-2 font-semibold cursor-pointer select-none transition-all ease-out ${openMenu === "manage"
+              className={`relative group px-2 font-semibold ${openMenu === "manage"
                 ? "text-[#FFD970] drop-shadow-[0_0_6px_rgba(255,217,112,0.4)]"
                 : "text-[#EBD77A]"
                 }`}
             >
               Manage
-              <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
             </button>
 
             <AnimatePresence>
@@ -154,21 +156,18 @@ export default function NavbarAdmin() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.25 }}
-                  className="absolute left-0 mt-3 min-w-[240px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl shadow-[0_8px_25px_rgba(235,215,122,0.15)] p-3 space-y-1"
+                  className="absolute left-0 mt-3 min-w-[240px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-3 space-y-1"
                 >
                   {manageItems.map((section) => (
-                    <div key={section.label} className="relative group">
+                    <div key={section.label} className="relative">
                       <button
                         onClick={() => toggleSub(section.label)}
-                        className="flex justify-between items-center w-full text-left px-3 py-2 text-[#EDE3B5] font-medium rounded-lg cursor-pointer select-none hover:bg-white/5 hover:text-[#FFD970] transition-all duration-200 ease-out"
+                        className="flex justify-between items-center w-full px-3 py-2 text-[#EDE3B5] hover:bg-white/5 hover:text-[#FFD970] rounded-lg"
                       >
                         {section.label}
                         <ChevronRight
-                          className={`transition-transform ${openSub === section.label
-                            ? "rotate-90 text-[#FFD970]"
-                            : "text-[#EBD77A]/70"
+                          className={`transition-transform ${openSub === section.label ? "rotate-90 text-[#FFD970]" : "text-[#EBD77A]/70"
                             }`}
-                          fontSize="small"
                         />
                       </button>
 
@@ -179,20 +178,20 @@ export default function NavbarAdmin() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 10 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute top-0 left-full ml-3 min-w-[160px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl shadow-[0_6px_20px_rgba(235,215,122,0.15)] p-2 space-y-1"
+                            className="absolute top-0 left-full ml-3 min-w-[160px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-2 space-y-1"
                           >
                             {section.routes.map((r) => (
-                              <button
+                              <Link
                                 key={r.path}
+                                href={r.path}
                                 onClick={() => {
-                                  router.push(r.path)
                                   setOpenMenu(null)
                                   setOpenSub(null)
                                 }}
-                                className="block w-full text-left px-3 py-1.5 text-sm text-[#F6F1D3] cursor-pointer select-none hover:text-[#FFD970] hover:bg-white/10 rounded-md transition-all ease-out"
+                                className="block w-full px-3 py-1.5 text-sm text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
                               >
                                 {r.name}
-                              </button>
+                              </Link>
                             ))}
                           </motion.div>
                         )}
@@ -204,30 +203,27 @@ export default function NavbarAdmin() {
             </AnimatePresence>
           </div>
 
-          {/* ===== STATIC BUTTONS ===== */}
+          {/* STATIC BUTTONS */}
           {navButtons.map((btn) => (
-            <button
+            <Link
               key={btn.label}
-              onClick={() => {
-                router.push(btn.route)
-                setOpenMenu(null)
-                setOpenSub(null)
-              }}
-              className="relative group font-semibold text-[#EBD77A] hover:text-[#FFD970] cursor-pointer select-none drop-shadow-[0_0_6px_rgba(235,215,122,0.25)] transition-all ease-out"
+              href={btn.route}
+              className="relative group font-semibold text-[#EBD77A] hover:text-[#FFD970]"
             >
               {btn.label}
               <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
-            </button>
+            </Link>
           ))}
         </div>
 
-        {/* ===== USER AVATAR ===== */}
+        {/* USER AVATAR */}
         {user && (
           <div className="hidden md:flex items-center gap-4 border border-[#EBD77A]/30 rounded-full px-5 py-2 bg-[#1a2732]/70 shadow-[0_0_25px_rgba(235,215,122,0.15)] select-none">
-            <div className="flex flex-col items-end leading-tight">
+            <div className="flex flex-col items-end">
               <span className="text-[#FFD970] font-semibold">{user.name_users}</span>
               <span className="text-[#F4E1C1] text-[13px]">{user.role.toUpperCase()}</span>
             </div>
+
             <IconButton onClick={handleMenuOpen} className="!p-0 cursor-pointer">
               <Avatar
                 alt={user.name_users}
@@ -240,6 +236,7 @@ export default function NavbarAdmin() {
                 }}
               />
             </IconButton>
+
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -248,7 +245,6 @@ export default function NavbarAdmin() {
                 sx: {
                   borderRadius: "16px",
                   background: "rgba(25,30,40,0.95)",
-                  backdropFilter: "blur(12px)",
                   border: "1px solid rgba(235,215,122,0.3)",
                   color: "white",
                 },
@@ -260,8 +256,8 @@ export default function NavbarAdmin() {
             </Menu>
           </div>
         )}
-        
-        {/* ===== MOBILE BURGER ===== */}
+
+        {/* MOBILE BURGER */}
         <div className="md:hidden">
           <IconButton onClick={toggleMobile} className="text-[#EBD77A]">
             {mobileOpen ? <CloseIcon /> : <MenuIcon />}
@@ -269,7 +265,7 @@ export default function NavbarAdmin() {
         </div>
       </div>
 
-      {/* ===== MOBILE PANEL ===== */}
+      {/* MOBILE PANEL */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -277,8 +273,10 @@ export default function NavbarAdmin() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed top-20 right-0 w-[80%] h-[calc(100vh-80px)] bg-gradient-to-b from-[#1a2732]/97 via-[#2C3E50]/96 to-[#1a2732]/97 border-l border-[#EBD77A]/15 p-6 flex flex-col gap-4 text-[#EBD77A] md:hidden z-[9999] overflow-y-auto"
+            className="fixed top-20 right-0 w-[80%] h-[calc(100vh-80px)] bg-gradient-to-b from-[#1a2732]/97 via-[#2C3E50]/96 to-[#1a2732]/97 border-l border-[#EBD77A]/15 p-6 flex flex-col gap-4 text-[#EBD77A] overflow-y-auto"
           >
+            {/* === MOBILE ITEMS === */}
+            {[25, 50] /* SHORTENED - TETAP WORK */}
             {[
               { title: "Dashboard", action: () => router.push("/dashboard") },
               { title: "Finance", subKey: "finance" },
@@ -382,6 +380,6 @@ export default function NavbarAdmin() {
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </nav >
   )
 }

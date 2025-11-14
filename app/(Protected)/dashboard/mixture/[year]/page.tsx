@@ -52,22 +52,6 @@ const Transition = forwardRef(function Transition(props: any, ref) {
     return <Slide direction="up" ref={ref} {...props} timeout={500} />
 })
 
-const INCOME_LABEL: Record<number, string> = {
-    1: "Klaim BPJS",
-    2: "Pasien Umum",
-    3: "Bunga Deposito",
-    4: "Kerja Sama & Sewa",
-}
-
-const SPENDING_LABEL: Record<number, string> = {
-    4: "Operasional",
-    5: "Pemeliharaan",
-    6: "Pendukung",
-    7: "Honor Pegawai",
-    8: "Jasa Medis",
-    9: "Obat",
-    10: "Peralatan & Mesin",
-}
 
 const MONTHS_ID = Array.from({ length: 12 }, (_, i) => i + 1)
 const MONTHS_LABEL = MONTHS_ID.map((m) =>
@@ -84,6 +68,31 @@ export default function FinanceMonthly() {
 
     const [incomeRaw, setIncomeRaw] = useState<Income[]>([])
     const [spendingRaw, setSpendingRaw] = useState<Spending[]>([])
+
+    const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
+    const [spendingCategories, setSpendingCategories] = useState<Category[]>([]);
+
+    type Category = {
+        id: number
+        name_category: string
+    }
+
+    // 🔥 useMemo HARUS ADA DI SINI!!!
+    const INCOME_LABEL = useMemo(() => {
+        const obj: Record<number, string> = {};
+        incomeCategories.forEach((c) => {
+            obj[c.id] = c.name_category;
+        });
+        return obj;
+    }, [incomeCategories]);
+
+    const SPENDING_LABEL = useMemo(() => {
+        const obj: Record<number, string> = {};
+        spendingCategories.forEach((c) => {
+            obj[c.id] = c.name_category;
+        });
+        return obj;
+    }, [spendingCategories]);
 
     // Dialog bulan besar (zoom)
     const [openMonthDialog, setOpenMonthDialog] = useState(false)
@@ -142,6 +151,11 @@ export default function FinanceMonthly() {
         if (openMedicine) setMedPage(1)
     }, [openMedicine])
 
+    useEffect(() => {
+        axiosInstance.get("/api/categoryIncome").then(res => setIncomeCategories(res.data));
+        axiosInstance.get("/api/categorySpending").then(res => setSpendingCategories(res.data));
+    }, []);
+
     // ================= FETCH DATA =================
     useEffect(() => {
         if (!year) return
@@ -186,7 +200,7 @@ export default function FinanceMonthly() {
 
         MONTHS_ID.forEach((m) => {
             const incPie = Object.entries(result[m].income.byCat)
-                .filter(([cat]) => INCOME_LABEL[Number(cat)])
+                .filter(([cat]) => INCOME_LABEL[Number(cat)] !== undefined)
                 .map(([cat, val], idx) => ({
                     id: idx,
                     value: val,
@@ -195,7 +209,7 @@ export default function FinanceMonthly() {
                 }))
 
             const spPie = Object.entries(result[m].spending.byCat)
-                .filter(([cat]) => SPENDING_LABEL[Number(cat)])
+                .filter(([cat]) => SPENDING_LABEL[Number(cat)] !== undefined)
                 .map(([cat, val], idx) => ({
                     id: idx,
                     value: val,
@@ -430,31 +444,18 @@ export default function FinanceMonthly() {
         const chartRef = React.useRef<any>(null)
         const [fadeState, setFadeState] = React.useState<"icon" | "bar">("icon")
 
-        // ====== ICONS (SVG dari /public/icons) ======
-        const pathSymbols = {
-            bpjs: "image:///icons/bpjs.svg",
-            umum: "image:///icons/patient.svg",
-            deposito: "image:///icons/money.svg",
-            sewa: "image:///icons/handshake.svg",
-            operasional: "image:///icons/gear.svg",
-            pemeliharaan: "image:///icons/wrench.svg",
-            pendukung: "image:///icons/box.svg",
-            honor: "image:///icons/tie.svg",
-            jasa: "image:///icons/steth.svg",
-            obat: "image:///icons/pill.svg",
-            mesin: "image:///icons/machine.svg",
-        }
 
         const makeSeries = (type: "icon" | "bar"): echarts.PictorialBarSeriesOption => ({
             name: type === "icon" ? "Ikon" : "Bar",
-            type: "pictorialBar", // <— sekarang valid
+            type: "pictorialBar",
             symbolRepeat: true,
-            symbolSize: [70, 70],
-            barCategoryGap: "80%",
-            symbolMargin: 3,
+            symbolSize: type === "icon" ? [40, 40] : [20, 20],  // ukuran lebih pas
+            barCategoryGap: "70%",
+            symbolMargin: 4,
             animationDuration: 1000,
-            animationDurationUpdate: 1200, // << smooth update
+            animationDurationUpdate: 1200,
             animationEasingUpdate: "cubicInOut",
+
             label: {
                 show: true,
                 position: "top",
@@ -465,30 +466,23 @@ export default function FinanceMonthly() {
                 opacity: type === fadeState ? 1 : 0,
                 formatter: (p: any) => formatRp(p.value),
             },
+
             itemStyle: {
-                opacity: type === fadeState ? 1 : 0, // Crossfade
+                opacity: type === fadeState ? 1 : 0,
                 shadowBlur: 10,
                 shadowColor:
-                    color === "#FFD700" ? "rgba(255,215,0,0.3)" : "rgba(255,127,80,0.3)",
+                    color === "#FFD700"
+                        ? "rgba(255,215,0,0.3)"
+                        : "rgba(255,127,80,0.3)",
             },
+
             data:
                 type === "icon"
                     ? data.map((d) => ({
                         value: d.value,
                         name: d.name,
                         catId: d.catId,
-                        symbol:
-                            d.name.includes("BPJS") ? pathSymbols.bpjs :
-                                d.name.includes("Umum") ? pathSymbols.umum :
-                                    d.name.includes("Deposito") ? pathSymbols.deposito :
-                                        d.name.includes("Sewa") ? pathSymbols.sewa :
-                                            d.name.includes("Obat") ? pathSymbols.obat :
-                                                d.name.includes("Operasional") ? pathSymbols.operasional :
-                                                    d.name.includes("Medis") ? pathSymbols.jasa :
-                                                        d.name.includes("Pegawai") ? pathSymbols.honor :
-                                                            d.name.includes("Pemeliharaan") ? pathSymbols.pemeliharaan :
-                                                                d.name.includes("Pendukung") ? pathSymbols.pendukung :
-                                                                    pathSymbols.mesin,
+                        symbol: "diamond", // bentuk fix untuk ikon
                     }))
                     : data.map((d) => ({
                         value: d.value,
@@ -497,7 +491,6 @@ export default function FinanceMonthly() {
                         symbol: "rect",
                     })),
         });
-
 
         const makeOption = (): echarts.EChartsOption => ({
             backgroundColor: "transparent",
@@ -510,7 +503,7 @@ export default function FinanceMonthly() {
                 left: "center",
                 textStyle: { color, fontSize: 18, fontWeight: 700 },
             },
-            grid: { left: 20, right: 20, top: 60, bottom: 50 },
+            grid: { left: 20, right: 20, top: 60, bottom: 120 },
             xAxis: {
                 type: "category",
                 data: data.map((d) => d.name),
