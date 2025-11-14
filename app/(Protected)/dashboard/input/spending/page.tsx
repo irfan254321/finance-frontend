@@ -95,9 +95,8 @@ export default function InputSpendingPage() {
 
     useEffect(() => {
         if (openDialog === null) {
-            excel.setFile(null)
-            excel.setPreviewData([])
             excel.setJenisUpload("umum")
+            excel.setAlert({ open: false, message: "", severity: "success" })
 
             category.setCategoryName("")
 

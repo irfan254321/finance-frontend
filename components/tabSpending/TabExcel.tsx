@@ -13,6 +13,7 @@ import { useState } from "react"
 
 export default function TabExcel({
   file,
+  fileName,
   previewData,
   jenisUpload,
   setJenisUpload,
@@ -24,6 +25,7 @@ export default function TabExcel({
   // PAGINATION ==========================================
   const ITEMS_PER_PAGE = 15
   const [page, setPage] = useState(1)
+  
 
   const pageCount = Math.ceil(previewData.length / ITEMS_PER_PAGE)
   const paginatedPreview = previewData.slice(
@@ -122,9 +124,9 @@ export default function TabExcel({
               </Button>
             </div>
 
-            {file && (
+            {fileName && (
               <p className="text-gray-200 mt-4 text-sm">
-                📂 File: <span className="text-[#FFD700]">{file.name}</span>
+                📂 File: <span className="text-[#FFD700]">{fileName}</span>
               </p>
             )}
           </div>

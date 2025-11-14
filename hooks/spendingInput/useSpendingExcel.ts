@@ -3,8 +3,129 @@ import { useState } from "react"
 import * as XLSX from "xlsx"
 import axiosInstance from "@/lib/axiosInstance"
 
+// ======================================================
+// 🧹 SANITASI NILAI EXCEL
+// ======================================================
+function sanitizeValue(v: any) {
+  if (v === null || v === undefined) return null
+  if (v === "-" || v === "" || v === " ") return null
+
+  // Jika string angka → convert
+  if (typeof v === "string" && !isNaN(Number(v))) {
+    v = Number(v)
+  }
+
+  // Excel Serial Date
+  if (typeof v === "number" && v > 30000 && v < 60000) {
+    const excelDate = new Date((v - 25569) * 86400 * 1000)
+    return excelDate.toISOString().slice(0, 10)
+  }
+
+  // Format dd/mm/yyyy → yyyy-mm-dd
+  if (typeof v === "string" && v.includes("/")) {
+    const [d, m, y] = v.split("/")
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
+  }
+
+  return v
+}
+
+// ======================================================
+// 🧹 SANITASI ROW UMUM
+// ======================================================
+function sanitizeRowGeneral(r: any) {
+  return {
+    name_spending: sanitizeValue(r.name_spending),
+    amount_spending: sanitizeValue(r.amount_spending),
+    category_id: sanitizeValue(r.category_id),
+    date_spending: sanitizeValue(r.date_spending),
+  }
+}
+
+// ======================================================
+// 🧹 SANITASI ROW OBAT
+// ======================================================
+function sanitizeMedicineRow(r: any) {
+  return {
+    name_spending: sanitizeValue(r.name_spending),
+    category_id: sanitizeValue(r.category_id),
+    date_spending: sanitizeValue(r.date_spending),
+    company_id: sanitizeValue(r.company_id),
+    name_medicine: sanitizeValue(r.name_medicine),
+    quantity: sanitizeValue(r.quantity),
+    unit_id: sanitizeValue(r.unit_id),
+    price_per_item: sanitizeValue(r.price_per_item),
+  }
+}
+
+// ======================================================
+// ✔ VALIDATE UMUM
+// ======================================================
+function isValidRowGeneral(r: any) {
+  return (
+    r.name_spending &&
+    typeof r.name_spending === "string" &&
+    r.amount_spending &&
+    typeof r.amount_spending === "number" &&
+    r.amount_spending > 0 &&
+    r.category_id &&
+    typeof r.category_id === "number" &&
+    r.date_spending
+  )
+}
+
+// ======================================================
+// ✔ VALIDATE OBAT
+// ======================================================
+function isValidMedicine(r: any) {
+  return (
+    r.name_spending &&
+    r.category_id === 9 &&
+    r.company_id &&
+    r.date_spending &&
+    r.name_medicine &&
+    r.quantity > 0 &&
+    r.unit_id &&
+    r.price_per_item > 0
+  )
+}
+
+// ======================================================
+// 🔥 GROUPING OBAT
+// ======================================================
+function groupMedicines(rows: any[]) {
+  const groups: any = {}
+
+  rows.forEach(r => {
+    const key = `${r.name_spending}_${r.company_id}_${r.date_spending}`
+
+    if (!groups[key]) {
+      groups[key] = {
+        name_spending: r.name_spending,
+        category_id: r.category_id,
+        date_spending: r.date_spending,
+        company_id: r.company_id,
+        items: []
+      }
+    }
+
+    groups[key].items.push({
+      name_medicine: r.name_medicine,
+      quantity: r.quantity,
+      unit_id: r.unit_id,
+      price_per_item: r.price_per_item
+    })
+  })
+
+  return Object.values(groups)
+}
+
+// ======================================================
+// 🚀 MAIN HOOK
+// ======================================================
 export function useSpendingExcel() {
   const [file, setFile] = useState<File | null>(null)
+  const [fileName, setFileName] = useState("")
   const [previewData, setPreviewData] = useState<any[]>([])
   const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
   const [uploading, setUploading] = useState(false)
@@ -14,60 +135,101 @@ export function useSpendingExcel() {
     severity: "success" as "success" | "error",
   })
 
-  // 📥 Preview file Excel
+  // ======================================================
+  // 📥 PILIH FILE EXCEL (AUTO SANITASI)
+  // ======================================================
   const handleExcelSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
+
     setFile(f)
+    setFileName(f.name)
 
     const reader = new FileReader()
     reader.onload = (event: any) => {
       const wb = XLSX.read(event.target.result, { type: "binary" })
       const sheet = wb.SheetNames[0]
-      const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheet])
-      setPreviewData(raw)
+      let data = XLSX.utils.sheet_to_json(wb.Sheets[sheet])
+
+      // OBAT MODE
+      if (jenisUpload === "obat") {
+        data = data.map(r => sanitizeMedicineRow(r))
+        data = data.filter(r => isValidMedicine(r))
+        setPreviewData(data)
+        return
+      }
+
+      // UMUM MODE
+      data = data.map(r => sanitizeRowGeneral(r))
+      data = data.filter(r => isValidRowGeneral(r))
+      setPreviewData(data)
     }
+
     reader.readAsBinaryString(f)
   }
 
-  // 🚀 Upload ke backend
+  // ======================================================
+  // 🚀 UPLOAD DATA GENERAL / NON OBAT
+  // ======================================================
+  const uploadGeneral = async () => {
+    const res = await axiosInstance.post(
+      "/api/uploadSpendingExcelGeneral",
+      { rows: previewData },
+      { headers: { "Content-Type": "application/json" } }
+    )
+    return res
+  }
+
+  // ======================================================
+  // 🚀 UPLOAD DATA OBAT (GROUPED)
+  // ======================================================
+  const uploadObat = async () => {
+    const grouped = groupMedicines(previewData)
+
+    const res = await axiosInstance.post(
+      "/api/uploadSpendingExcelObat",
+      { data: grouped },
+      { headers: { "Content-Type": "application/json" } }
+    )
+    return res
+  }
+
+  // ======================================================
+  // 🚀 HANDLE UPLOAD FINAL
+  // ======================================================
   const handleUploadExcel = async () => {
-    if (!file) {
-      setAlert({ open: true, message: "Pilih file dulu!", severity: "error" })
+    if (previewData.length === 0) {
+      setAlert({
+        open: true,
+        message: "Tidak ada data valid untuk diupload!",
+        severity: "error",
+      })
       return
     }
 
     try {
       setUploading(true)
 
-      const formData = new FormData()
-      formData.append("file", file) // ⚠️ harus sama dengan upload.single("file")
-      formData.append("jenisUpload", jenisUpload)
-
-      const url =
-        jenisUpload === "umum"
-          ? "/api/uploadSpendingExcelGeneral"
-          : "/api/uploadSpendingExcelObat"
-
-      const res = await axiosInstance.post(url, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-
-      // kalau backend balikin preview data
-      if (res.data?.preview) setPreviewData(res.data.preview)
+      const res =
+        jenisUpload === "obat"
+          ? await uploadObat()
+          : await uploadGeneral()
 
       setAlert({
         open: true,
-        message: "✅ Upload Excel berhasil!",
+        message: res.data.message ?? "Berhasil upload!",
         severity: "success",
       })
-      setFile(null)
+
+      setFileName("")
+      setPreviewData([])
+
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        "❌ Gagal upload Excel!"
-      setAlert({ open: true, message: msg, severity: "error" })
+      setAlert({
+        open: true,
+        message: err.response?.data?.message ?? "Gagal upload!",
+        severity: "error",
+      })
     } finally {
       setUploading(false)
     }
@@ -76,6 +238,8 @@ export function useSpendingExcel() {
   return {
     file,
     setFile,
+    fileName,
+    setFileName,
     previewData,
     setPreviewData,
     jenisUpload,
@@ -86,4 +250,5 @@ export function useSpendingExcel() {
     handleExcelSelect,
     handleUploadExcel,
   }
+
 }
