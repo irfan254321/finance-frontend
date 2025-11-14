@@ -11,6 +11,7 @@ import CustomTextField from "@/components/ui/CustomTextField"
 import TabWrapper from "@/components/tabWrapper"
 import { useState } from "react"
 
+
 export default function TabExcel({
   file,
   previewData,
@@ -29,8 +30,12 @@ export default function TabExcel({
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE
   )
+  
 
   return (
+
+    
+    
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -90,7 +95,7 @@ export default function TabExcel({
 
               <Button
                 variant="contained"
-                disabled={!file || uploading}
+                disabled={uploading}
                 onClick={handleDownloadTemplate}
                 sx={{
                   bgcolor: "#1f2733",
