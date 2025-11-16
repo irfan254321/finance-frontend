@@ -200,7 +200,7 @@ export default function FinanceMonthly() {
 
         MONTHS_ID.forEach((m) => {
             const incPie = Object.entries(result[m].income.byCat)
-                .filter(([cat]) => INCOME_LABEL[Number(cat)] !== undefined)
+                .filter(([cat, val]) => val > 0)
                 .map(([cat, val], idx) => ({
                     id: idx,
                     value: val,
@@ -209,7 +209,7 @@ export default function FinanceMonthly() {
                 }))
 
             const spPie = Object.entries(result[m].spending.byCat)
-                .filter(([cat]) => SPENDING_LABEL[Number(cat)] !== undefined)
+                .filter(([cat, val]) => val > 0)
                 .map(([cat, val], idx) => ({
                     id: idx,
                     value: val,
@@ -1256,9 +1256,9 @@ export default function FinanceMonthly() {
                                         onEvents={{
                                             click: (params: { name: string }) => {
                                                 if (params.name === "Pendapatan") {
-                                                    handleSemesterClick("income", 1);
+                                                    handleSemesterClick("income", semesterIndex);
                                                 } else if (params.name === "Pengeluaran") {
-                                                    handleSemesterClick("spending", 1);
+                                                    handleSemesterClick("spending", semesterIndex);
                                                 }
                                             },
                                         }}

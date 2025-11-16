@@ -4,41 +4,63 @@ import * as XLSX from "xlsx"
 import axiosInstance from "@/lib/axiosInstance"
 
 // ======================================================
+// 🧹 CLEAN ALL SYMBOL AND SPACE FIRST AND LAST WORD
+// ======================================================
+
+function cleanName(str: string) {
+  if (!str) return str;
+
+  str = str.trim();
+
+  // hapus simbol non huruf/angka di AWAL
+  str = str.replace(/^[^A-Za-z0-9]+/, "");
+
+  // hapus simbol non huruf/angka di AKHIR
+  str = str.replace(/[^A-Za-z0-9]+$/, "");
+
+  return str;
+}
+
+// ======================================================
 // 🧹 SANITASI NILAI EXCEL
 // ======================================================
-function sanitizeValue(v: string | number | null | undefined) {
-  if (v === null || v === undefined) return null
+function sanitizeValue(v: any) {
+  if (v === null || v === undefined) return null;
 
-  if (typeof v === "string") v = v.trim()
+  // buang spasi awal/akhir kalau string
+  if (typeof v === "string") v = v.trim();
 
-  if (v === "-" || v === "") return null
+  // kosong / "-" → null
+  if (v === "" || v === "-") return null;
 
-  // 🎯 1. Excel Serial Date (WAJIB DIDETECTION DULU)
+  // 🎯 1. Excel serial date (40000-an)
   if (typeof v === "number" && v > 30000 && v < 60000) {
-    const excelDate = new Date((v - 25569) * 86400 * 1000)
-    return excelDate.toISOString().slice(0, 10)
+    const excelDate = new Date((v - 25569) * 86400 * 1000);
+    return excelDate.toISOString().slice(0, 10);
   }
 
-  // 🎯 2. Format dd/mm/yyyy → yyyy-mm-dd
+  // 🎯 2. Format tanggal dd/mm/yyyy
   if (typeof v === "string" && v.includes("/")) {
-    const [d, m, y] = v.split("/")
-    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`
+    const [d, m, y] = v.split("/");
+    if (d && m && y) {
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
   }
 
-  // 🎯 3. Jika angka biasa
+  // 🎯 3. Jika angka (string atau number)
   if (!isNaN(Number(v))) {
-    return Number(v)
+    return Number(v);
   }
 
+  // 🎯 4. Bersihkan nama/string lain
   if (typeof v === "string") {
-  v = v.trim()
-  v = v.replace(/^\-+/, "")   // buang minus di awal
+    v = cleanName(v);
+    v = v.replace(/^\-+/, ""); // buang '-' di awal
+    v = v.trim();
+  }
+
+  return v;
 }
-
-
-  return v
-}
-
 
 
 function sanitizePriceObat(v: any) {
