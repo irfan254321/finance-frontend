@@ -6,6 +6,26 @@ import * as XLSX from "xlsx"
 import { CategoryIncome } from "./useCategoryIncome"
 
 // ======================================================
+// 🧹 CLEAN ALL SYMBOL AND SPACE FIRST AND LAST WORD
+// ======================================================
+
+function cleanName(str: string) {
+  if (!str) return str
+
+  // Hilangkan spasi di kiri-kanan dulu
+  str = str.trim()
+
+  // Hapus semua simbol non-huruf/angka di AWAL
+  str = str.replace(/^[^A-Za-z]+/, "")
+
+  // Hapus semua simbol non-huruf/angka di AKHIR
+  str = str.replace(/[^A-Za-z]+$/, "")
+
+  return str
+}
+
+
+// ======================================================
 // 🧹 SANITASI NILAI EXCEL
 // ======================================================
 function sanitizeValue(v: any) {
@@ -23,6 +43,10 @@ function sanitizeValue(v: any) {
   if (typeof v === "number" && v > 30000 && v < 60000) {
     const excelEpoch = new Date((v - 25569) * 86400 * 1000)
     return excelEpoch.toISOString().slice(0, 10)
+  }
+
+  if (typeof v === "string") {
+    v = cleanName(v)
   }
 
   return v
