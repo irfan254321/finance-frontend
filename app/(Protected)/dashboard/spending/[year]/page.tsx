@@ -15,23 +15,8 @@ import {
   CircularProgress,
 } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
-
-interface Spending {
-  id: number
-  name_spending: string
-  amount_spending: number
-  category_id: number
-  date_spending: string
-  created_at: string
-}
-
-interface Medicine {
-  medicine_id: number
-  name_medicine: string
-  quantity: number
-  name_unit?: string
-  created_at: string
-}
+import { Spending, Medicine } from "@/app/(Protected)/dashboard/mixture/[year]/components/types"
+import Transition from "@/components/ui/Transition"
 
 export default function SpendingDashboard() {
   const params = useParams()
@@ -40,7 +25,7 @@ export default function SpendingDashboard() {
   const [dataMonth, setDataMonth] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [chartSize, setChartSize] = useState({ width: 1500, height: 480 })
+  const [chartSize, setChartSize] = useState({ width: 1800, height: 600 })
 
   // 🔹 Dialog kedua (Detail Obat)
   const [openMedicine, setOpenMedicine] = useState(false)
@@ -48,12 +33,12 @@ export default function SpendingDashboard() {
   const [selectedSpending, setSelectedSpending] = useState<Spending | null>(null)
   const [loadingMedicine, setLoadingMedicine] = useState(false)
 
-  // 📏 Resize responsif
+  // 📏 Resize responsif - LEBIH BESAR
   useEffect(() => {
     const handleResize = () => {
       const screenWidth = window.innerWidth
-      const width = Math.min(screenWidth * 0.85, 1400)
-      const height = Math.max(400, Math.round(width * 0.4))
+      const width = Math.min(screenWidth * 0.95, 2000)
+      const height = Math.max(600, Math.round(width * 0.45))
       setChartSize({ width, height })
     }
     handleResize()
@@ -98,7 +83,7 @@ export default function SpendingDashboard() {
       const sorted = Object.entries(monthly)
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([num, val]) => ({
-          month: new Date(2024, Number(num) - 1).toLocaleString("id-ID", { month: "short" }),
+          month: new Date(2024, Number(num) - 1).toLocaleString("id-ID", { month: "long" }),
           ...val,
         }))
 
@@ -187,20 +172,18 @@ export default function SpendingDashboard() {
       "#9575CD", // Peralatan
     ]
 
-    // tooltip formatter rupiah
-    const formatRp = (n: number) => "Rp " + (n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })
-
     return {
       backgroundColor: "transparent",
-      animationDuration: 700,
+      animationDuration: 1000,
       animationEasing: "cubicOut",
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
-        backgroundColor: "rgba(20,20,30,0.9)",
-        borderColor: "rgba(255,215,0,0.4)",
-        borderWidth: 1,
-        textStyle: { color: "#F4E1C1" },
+        backgroundColor: "rgba(20,20,30,0.95)",
+        borderColor: "rgba(255,215,0,0.5)",
+        borderWidth: 2,
+        textStyle: { color: "#F4E1C1", fontSize: 16 },
+        padding: 16,
         formatter: (params: any[]) => {
           if (!params?.length) return ""
           const title = params[0].axisValue
@@ -242,40 +225,47 @@ export default function SpendingDashboard() {
               }
 
               const val = key && row ? row[key] : 0
-              return `${marker} <b>${p.seriesName}</b>: ${formatRp(val)}`
+              return `<div style="display:flex; justify-content:space-between; gap:20px; margin-top:4px">
+                        <span>${marker} ${p.seriesName}</span>
+                        <span style="font-weight:bold; color:#FFD970">${formatRp(val)}</span>
+                      </div>`
             })
-            .join("<br/>")
+            .join("")
 
-          return `<div style="margin-bottom:4px"><b>${title}</b></div>${lines}`
+          return `<div style="margin-bottom:8px; font-size:18px; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:4px">${title}</div>${lines}`
         },
         confine: true,
       },
 
       legend: {
         top: 0,
-        textStyle: { color: "#F4E1C1", fontSize: 14, fontWeight: 600 },
-        itemWidth: 16,
-        itemHeight: 10,
+        textStyle: { color: "#F4E1C1", fontSize: 16, fontWeight: "bold" },
+        itemWidth: 20,
+        itemHeight: 14,
+        itemGap: 20,
       },
       grid: {
-        top: 60,
-        left: 60,
-        right: 30,
-        bottom: 60,
+        top: 80,
+        left: 80,
+        right: 40,
+        bottom: 80,
         containLabel: true,
       },
       xAxis: {
         type: "category",
-        axisLabel: { color: "#F4E1C1", fontSize: 12 },
-        axisLine: { lineStyle: { color: "rgba(255,215,0,0.35)" } },
+        axisLabel: { color: "#F4E1C1", fontSize: 14, fontWeight: "bold", margin: 16 },
+        axisLine: { lineStyle: { color: "rgba(255,215,0,0.4)", width: 2 } },
+        axisTick: { show: false },
       },
       yAxis: {
         type: "value",
         axisLabel: {
           color: "#F4E1C1",
-          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v),
+          fontSize: 14,
+          fontWeight: "bold",
+          formatter: (v: number) => (v >= 1000000000 ? `${(v / 1000000000).toFixed(1)}M` : v >= 1000000 ? `${(v / 1000000).toFixed(0)}jt` : v),
         },
-        splitLine: { lineStyle: { color: "rgba(255,215,0,0.15)" } },
+        splitLine: { lineStyle: { color: "rgba(255,215,0,0.1)", width: 1 } },
       },
       dataset: {
         dimensions: [
@@ -295,14 +285,7 @@ export default function SpendingDashboard() {
           name: "Operasional",
           type: "bar",
           itemStyle: glossyBar(colors[0]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           barGap: "10%",
           barCategoryGap: "25%",
           encode: { x: "month", y: "operasional" },
@@ -311,84 +294,42 @@ export default function SpendingDashboard() {
           name: "Pemeliharaan",
           type: "bar",
           itemStyle: glossyBar(colors[1]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "pemeliharaan" },
         },
         {
           name: "Pendukung",
           type: "bar",
           itemStyle: glossyBar(colors[2]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "pendukung" },
         },
         {
           name: "Honor Pegawai",
           type: "bar",
           itemStyle: glossyBar(colors[3]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "honor" },
         },
         {
           name: "Jasa Medis",
           type: "bar",
           itemStyle: glossyBar(colors[4]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "jasaMedis" },
         },
         {
           name: "Obat (Bekal Kesehatan)",
           type: "bar",
           itemStyle: glossyBar(colors[5]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "obat" },
         },
         {
           name: "Peralatan & Mesin",
           type: "bar",
           itemStyle: glossyBar(colors[6]),
-          emphasis: {
-            focus: "series",
-            itemStyle: {
-              shadowColor: "rgba(255,215,0,0.6)",
-              shadowBlur: 12,
-            },
-          },
-
+          emphasis: { focus: "series", itemStyle: { shadowColor: "rgba(255,215,0,0.6)", shadowBlur: 12 } },
           encode: { x: "month", y: "peralatan" },
         },
       ],
@@ -403,10 +344,10 @@ export default function SpendingDashboard() {
         { offset: 0.5, color: shade(color, -10) },
         { offset: 1, color: shade(color, -25) },
       ]),
-      borderRadius: [6, 6, 0, 0],
-      shadowColor: "rgba(0,0,0,0.25)",
-      shadowBlur: 6,
-      shadowOffsetY: 3,
+      borderRadius: [8, 8, 0, 0],
+      shadowColor: "rgba(0,0,0,0.4)",
+      shadowBlur: 10,
+      shadowOffsetY: 4,
     }
   }
 
@@ -428,46 +369,88 @@ export default function SpendingDashboard() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#1a2732] via-[#2C3E50] to-[#1a2732] text-white overflow-hidden">
-      <main className="flex-1 flex flex-col items-center justify-center px-10 pt-40">
-        <div className="w-full max-w-[1500px] bg-gradient-to-br from-[#2b3b4b]/90 to-[#1f2a36]/85 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/10 p-10 flex flex-col items-center">
-          <h1 className="text-4xl font-bold text-[#F4E1C1] text-center mb-6 drop-shadow-md">
-            <span className="text-yellow-400">Laporan Pengeluaran Tahunan</span>
-            <br /> Rumah Sakit Bhayangkara M. Hasan Palembang {year}
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#1a2732] via-[#2C3E50] to-[#1a2732] text-white overflow-x-hidden">
+      <main className="flex-1 flex flex-col items-center justify-start px-4 md:px-8 pt-32 pb-20 w-full">
+        
+        {/* Container Utama - Diperlebar */}
+        <div className="w-full max-w-[95vw] bg-gradient-to-br from-[#2b3b4b]/95 to-[#1f2a36]/90 backdrop-blur-xl rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 p-8 md:p-12 flex flex-col items-center">
+          
+          {/* Header - Diperbesar */}
+          <h1 className="text-4xl md:text-6xl font-extrabold text-[#F4E1C1] text-center mb-12 drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] tracking-tight">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD54F] to-[#F4E1C1]">Laporan Pengeluaran Tahunan</span>
+            <br /> 
+            <span className="text-2xl md:text-4xl font-serif font-normal mt-4 block text-[#EBD77A]/90">
+              Rumah Sakit Bhayangkara M. Hasan Palembang {year}
+            </span>
           </h1>
 
           {dataMonth.length === 0 ? (
-            <p className="py-10 text-gray-300 animate-pulse">Memuat data...</p>
+            <div className="py-20 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xl text-[#F4E1C1]/70 animate-pulse">Sedang memuat data...</p>
+            </div>
           ) : (
-            <div className="flex justify-center w-full px-4">
+            <div className="flex justify-center w-full overflow-x-auto pb-4">
               <ReactECharts
                 option={barOption(dataMonth)}
                 style={{ width: chartSize.width, height: chartSize.height }}
                 onEvents={chartEvents}
-                opts={{ renderer: "svg" }} // svg biar crisp; ganti ke 'canvas' kalau prefer performa
+                opts={{ renderer: "svg" }}
               />
             </div>
           )}
         </div>
 
         {/* 🧾 Dialog Utama */}
-        <Dialog open={open} onClose={handleClose}>
-          <DialogTitle>
+        <Dialog 
+          open={open} 
+          onClose={handleClose}
+          TransitionComponent={Transition}
+          sx={{
+            "& .MuiBackdrop-root": {
+              backdropFilter: "blur(15px)",
+              backgroundColor: "rgba(0,0,0,0.7)",
+            },
+            "& .MuiPaper-root": {
+              width: "90vw",
+              maxWidth: "1400px",
+              borderRadius: "32px",
+              background: "linear-gradient(145deg, rgba(25, 30, 40, 0.98), rgba(35, 45, 55, 0.98))",
+              border: "1px solid rgba(255,215,0,0.3)",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.7)",
+              color: "white",
+              padding: "0",
+              overflow: "hidden",
+            },
+          }}
+        >
+          <DialogTitle className="bg-[#1a2732]/50 p-6 border-b border-[#F4E1C1]/10">
             <div className="flex justify-between items-center">
-              <p className="font-bold text-2xl text-yellow-400 capitalize">
-                {selectedItem?.category} — {selectedItem?.month}
-              </p>
-              <IconButton onClick={handleClose}>
-                <CloseIcon />
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-2 bg-[#FFD54F] rounded-full"></div>
+                <div>
+                  <p className="font-bold text-3xl text-[#FFD54F] capitalize tracking-wide">
+                    {selectedItem?.category}
+                  </p>
+                  <p className="text-[#F4E1C1]/70 text-lg">
+                    Detail Pengeluaran Bulan {selectedItem?.month}
+                  </p>
+                </div>
+              </div>
+              <IconButton 
+                onClick={handleClose}
+                className="!text-[#F4E1C1] hover:!bg-white/10 !p-2 !border !border-[#F4E1C1]/20"
+              >
+                <CloseIcon fontSize="large" />
               </IconButton>
             </div>
           </DialogTitle>
-          <Divider />
-          <DialogContent className="px-10 py-8">
+          
+          <DialogContent className="p-8 bg-[#1a2732]/30">
             {selectedItem?.details?.length > 0 ? (
               <PaginationList details={selectedItem.details} onClickSpending={handleClickSpending} />
             ) : (
-              <div className="text-gray-400 text-center py-10">
+              <div className="text-[#F4E1C1]/50 text-center py-20 text-xl italic">
                 🚫 Tidak ada data detail.
               </div>
             )}
@@ -475,39 +458,71 @@ export default function SpendingDashboard() {
         </Dialog>
 
         {/* 💊 Dialog Detail Obat */}
-        <Dialog open={openMedicine} onClose={() => setOpenMedicine(false)}>
-          <DialogTitle>
+        <Dialog 
+          open={openMedicine} 
+          onClose={() => setOpenMedicine(false)}
+          TransitionComponent={Transition}
+          sx={{
+            "& .MuiBackdrop-root": {
+              backdropFilter: "blur(10px)",
+              backgroundColor: "rgba(0,0,0,0.6)",
+            },
+            "& .MuiPaper-root": {
+              width: "80vw",
+              maxWidth: "1000px",
+              borderRadius: "24px",
+              background: "linear-gradient(145deg, rgba(25, 30, 40, 0.98), rgba(35, 45, 55, 0.98))",
+              border: "1px solid rgba(77, 182, 172, 0.3)", // Warna obat
+              boxShadow: "0 25px 60px rgba(0,0,0,0.7)",
+              color: "white",
+              padding: "0",
+              overflow: "hidden",
+            },
+          }}
+        >
+          <DialogTitle className="bg-[#1a2732]/50 p-6 border-b border-[#4DB6AC]/20">
             <div className="flex justify-between items-center">
-              <p className="font-bold text-2xl text-yellow-400">
-                Detail Obat — {selectedSpending?.name_spending}
-              </p>
-              <IconButton onClick={() => setOpenMedicine(false)}>
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-2 bg-[#4DB6AC] rounded-full"></div>
+                <div>
+                  <p className="font-bold text-2xl text-[#4DB6AC]">
+                    Detail Obat
+                  </p>
+                  <p className="text-[#F4E1C1]/70 text-base">
+                    {selectedSpending?.name_spending}
+                  </p>
+                </div>
+              </div>
+              <IconButton onClick={() => setOpenMedicine(false)} className="!text-[#F4E1C1]">
                 <CloseIcon />
               </IconButton>
             </div>
           </DialogTitle>
-          <Divider />
-          <DialogContent className="px-10 py-8">
+          
+          <DialogContent className="p-8 bg-[#1a2732]/30">
             {loadingMedicine ? (
               <div className="flex justify-center items-center py-20">
-                <CircularProgress sx={{ color: "#FFD700" }} />
-                <span className="ml-4 text-[#FFD700]">Memuat data obat...</span>
+                <CircularProgress sx={{ color: "#4DB6AC" }} />
+                <span className="ml-4 text-[#4DB6AC] text-lg">Memuat data obat...</span>
               </div>
             ) : medicineList.length > 0 ? (
-              <ul className="space-y-3">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {medicineList.map((m) => (
-                  <li key={m.medicine_id} className="p-4 rounded-lg bg-[#2C3E50]/70 border border-[#FFD54F]/10">
+                  <li key={m.medicine_id} className="p-5 rounded-xl bg-[#2C3E50]/60 border border-[#4DB6AC]/20 hover:bg-[#34495E]/80 transition-all">
                     <div className="flex justify-between items-center">
-                      <p className="font-semibold text-[#FFD54F]">{m.name_medicine}</p>
-                      <p className="text-[#F4E1C1]">
-                        {m.quantity} {m.name_unit || "Unit"}
-                      </p>
+                      <p className="font-bold text-[#4DB6AC] text-lg">{m.name_medicine}</p>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-white">
+                          {m.quantity}
+                        </p>
+                        <p className="text-[#F4E1C1]/60 text-sm">{m.name_unit || "Unit"}</p>
+                      </div>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-400 text-center py-10">🚫 Tidak ada data obat untuk transaksi ini.</p>
+              <p className="text-[#F4E1C1]/50 text-center py-10 italic">🚫 Tidak ada data obat untuk transaksi ini.</p>
             )}
           </DialogContent>
         </Dialog>
@@ -516,7 +531,7 @@ export default function SpendingDashboard() {
   )
 }
 
-/* 🔹 Komponen PaginationList */
+/* 🔹 Komponen PaginationList - Diperbesar */
 function PaginationList({
   details,
   onClickSpending,
@@ -525,55 +540,76 @@ function PaginationList({
   onClickSpending: (item: Spending) => void
 }) {
   const [page, setPage] = useState(1)
-  const itemsPerPage = 8
+  const itemsPerPage = 6
   const totalPages = Math.ceil(details.length / itemsPerPage)
   const slice = details.slice((page - 1) * itemsPerPage, page * itemsPerPage)
 
   const formatRp = (n: number) => "Rp " + (n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })
 
   return (
-    <div className="flex flex-col gap-6">
-      <ul className="space-y-4">
+    <div className="flex flex-col gap-8 h-full">
+      <ul className="grid grid-cols-1 gap-4">
         {slice.map((d) => (
           <li
             key={d.id}
             onClick={() => onClickSpending(d)}
-            className={`p-5 rounded-xl bg-[#2C3E50]/70 hover:bg-[#34495E]/70 border border-[#F4E1C1]/10 transition shadow cursor-pointer ${d.category_id === 9 ? "hover:ring-2 hover:ring-[#FFD700]" : ""
-              }`}
+            className={`p-6 rounded-2xl bg-[#2C3E50]/60 hover:bg-[#34495E]/80 border border-[#F4E1C1]/10 transition-all duration-300 shadow-lg hover:shadow-[#FFD54F]/10 hover:scale-[1.01] cursor-pointer group ${
+              d.category_id === 9 ? "hover:border-[#4DB6AC]/50" : ""
+            }`}
             title={d.category_id === 9 ? "Klik untuk lihat detail obat" : undefined}
           >
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold text-[#FFD54F]">{d.name_spending}</p>
-                <p className="text-gray-400 text-sm">
-                  {new Date(d.date_spending).toLocaleDateString("id-ID")}
+            <div className="flex justify-between items-center">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <p className="font-bold text-xl text-[#FFD54F] group-hover:text-[#FFCA28] transition-colors">
+                    {d.name_spending}
+                  </p>
+                  {d.category_id === 9 && (
+                    <span className="bg-[#4DB6AC]/20 text-[#4DB6AC] text-xs px-2 py-1 rounded-full border border-[#4DB6AC]/30">
+                      💊 Obat
+                    </span>
+                  )}
+                </div>
+                <p className="text-[#F4E1C1]/60 text-base flex items-center gap-2">
+                  📅 {new Date(d.date_spending).toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </p>
               </div>
-              <p className="text-[#F4E1C1] font-bold">{formatRp(d.amount_spending)}</p>
+              <div className="text-right">
+                <p className="text-2xl font-extrabold text-[#F4E1C1] group-hover:text-white transition-colors">
+                  {formatRp(d.amount_spending)}
+                </p>
+              </div>
             </div>
           </li>
         ))}
       </ul>
 
       {totalPages > 1 && (
-        <div className="flex justify-between items-center pt-4 border-t border-[#F4E1C1]/20">
+        <div className="flex justify-between items-center pt-6 border-t border-[#F4E1C1]/20 mt-auto">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className={`px-5 py-2 rounded-lg transition ${page === 1 ? "bg-gray-700 text-gray-400" : "bg-[#2C3E50] hover:bg-[#34495E] text-[#F4E1C1]"
+            className={`px-6 py-3 rounded-xl font-bold text-lg transition-all ${page === 1
+              ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+              : "bg-[#2C3E50] hover:bg-[#34495E] text-[#F4E1C1] shadow-lg"
               }`}
           >
             ⬅️ Sebelumnya
           </button>
-          <p className="text-[#F4E1C1]/80 text-sm">
-            Halaman {page} dari {totalPages}
-          </p>
+          <span className="text-[#F4E1C1] font-semibold text-lg bg-[#1a2732] px-4 py-2 rounded-lg border border-[#F4E1C1]/10">
+            Halaman <span className="text-[#FFD54F]">{page}</span> dari {totalPages}
+          </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className={`px-5 py-2 rounded-lg transition ${page === totalPages
-              ? "bg-gray-700 text-gray-400"
-              : "bg-[#2C3E50] hover:bg-[#34495E] text-[#F4E1C1]"
+            className={`px-6 py-3 rounded-xl font-bold text-lg transition-all ${page === totalPages
+              ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+              : "bg-[#2C3E50] hover:bg-[#34495E] text-[#F4E1C1] shadow-lg"
               }`}
           >
             Selanjutnya ➡️

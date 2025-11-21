@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Avatar, IconButton, Menu, MenuItem, Divider } from "@mui/material"
 import { Menu as MenuIcon, Close as CloseIcon, ExpandMore, ExpandLess, ChevronRight } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
+import axiosInstance from "@/lib/axiosInstance"
 
 export default function NavbarAdmin() {
   const router = useRouter()
@@ -16,6 +17,19 @@ export default function NavbarAdmin() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [openSub, setOpenSub] = useState<string | null>(null)
+
+  // State untuk tahun
+  const [years, setYears] = useState<number[]>([])
+
+  useEffect(() => {
+    axiosInstance.get("/api/year")
+      .then((res) => {
+        // Asumsi res.data = [{ id: 1, year: 2024 }, ...]
+        const list = res.data.map((item: any) => item.year)
+        setYears(list)
+      })
+      .catch((err) => console.error("Gagal ambil tahun:", err))
+  }, [])
 
   const toggleMobile = () => setMobileOpen(!mobileOpen)
   const toggleMenu = (menu: string) => setOpenMenu(openMenu === menu ? null : menu)
@@ -49,6 +63,12 @@ export default function NavbarAdmin() {
       routes: [
         { name: "💰 Income", path: "/dashboard/edit/income" },
         { name: "💸 Spending", path: "/dashboard/edit/spending" },
+      ],
+    },
+    {
+      label: "📅 Year",
+      routes: [
+        { name: "➕ Input Year", path: "/dashboard/admin/year" },
       ],
     },
   ]
@@ -113,7 +133,7 @@ export default function NavbarAdmin() {
                             transition={{ duration: 0.2 }}
                             className="absolute top-0 left-full ml-3 min-w-[130px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-2 space-y-1"
                           >
-                            {[2024, 2025, 2026].map((year) => (
+                            {years.map((year) => (
                               <Link
                                 key={year}
                                 href={`${item.route}/${year}`}
@@ -276,7 +296,6 @@ export default function NavbarAdmin() {
             className="fixed top-20 right-0 w-[80%] h-[calc(100vh-80px)] bg-gradient-to-b from-[#1a2732]/97 via-[#2C3E50]/96 to-[#1a2732]/97 border-l border-[#EBD77A]/15 p-6 flex flex-col gap-4 text-[#EBD77A] overflow-y-auto"
           >
             {/* === MOBILE ITEMS === */}
-            {[25, 50] /* SHORTENED - TETAP WORK */}
             {[
               { title: "Dashboard", action: () => router.push("/dashboard") },
               { title: "Finance", subKey: "finance" },
@@ -309,7 +328,7 @@ export default function NavbarAdmin() {
                         <div key={f.label}>
                           <span className="font-semibold text-[#FFD970]">{f.label}</span>
                           <div className="ml-4 mt-1 space-y-1">
-                            {[2024, 2025, 2026].map((y) => (
+                            {years.map((y) => (
                               <button
                                 key={y}
                                 onClick={() => {
