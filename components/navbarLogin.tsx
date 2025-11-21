@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Avatar, IconButton, Divider, Menu, MenuItem } from "@mui/material"
 import { Menu as MenuIcon, Close as CloseIcon, ExpandMore, ExpandLess } from "@mui/icons-material"
@@ -18,6 +18,19 @@ export default function NavbarLogin() {
   const [desktopMenu, setDesktopMenu] = useState<string | null>(null)
   const [desktopSub, setDesktopSub] = useState<string | null>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+
+  // State untuk tahun
+  const [years, setYears] = useState<number[]>([])
+
+  useEffect(() => {
+    axiosInstance.get("/api/year")
+      .then((res) => {
+        // Asumsi res.data = [{ id: 1, year: 2024 }, ...]
+        const list = res.data.map((item: any) => item.year)
+        setYears(list)
+      })
+      .catch((err) => console.error("Gagal ambil tahun:", err))
+  }, [])
 
   const toggleMobile = () => setMobileOpen((p) => !p)
   const toggleMobileSub = (key: string) => setMobileSub((p) => (p === key ? null : key))
@@ -102,6 +115,7 @@ export default function NavbarLogin() {
                 desktopSub={desktopSub}
                 toggleDesktopSub={toggleDesktopSub}
                 items={financeItems}
+                years={years}
               />
 
               {/* === MANAGE MENU === */}
@@ -150,6 +164,7 @@ export default function NavbarLogin() {
             financeItems={financeItems}
             manageItems={manageItems}
             setMobileOpen={setMobileOpen}
+            years={years}
           />
         )}
       </AnimatePresence>
@@ -181,6 +196,7 @@ function DesktopDropdown({
   toggleDesktopSub,
   items,
   isManage = false,
+  years = [],
 }: any) {
   return (
     <div className="relative">
@@ -211,6 +227,7 @@ function DesktopDropdown({
                 desktopSub={desktopSub}
                 toggleDesktopSub={toggleDesktopSub}
                 isManage={isManage}
+                years={years}
               />
             ))}
           </motion.div>
@@ -220,7 +237,7 @@ function DesktopDropdown({
   )
 }
 
-function DropdownSection({ item, desktopSub, toggleDesktopSub, isManage }: any) {
+function DropdownSection({ item, desktopSub, toggleDesktopSub, isManage, years }: any) {
   return (
     <div className="relative">
       <button
@@ -252,7 +269,7 @@ function DropdownSection({ item, desktopSub, toggleDesktopSub, isManage }: any) 
                   {r.name}
                 </Link>
               ))
-              : [2024, 2025, 2026].map((year: number) => (
+              : years.map((year: number) => (
                 <Link
                   key={year}
                   href={`${item.route}/${year}`}
@@ -327,6 +344,7 @@ function MobileMenu({
   financeItems,
   manageItems,
   setMobileOpen,
+  years = [],
 }: any) {
   return (
     <motion.div
@@ -351,7 +369,7 @@ function MobileMenu({
               <div key={f.label}>
                 <span className="font-semibold text-[#FFD970]">{f.label}</span>
                 <div className="ml-4 mt-1 space-y-1">
-                  {[2024, 2025, 2026].map((y) => (
+                  {years.map((y: number) => (
                     <LinkMobile
                       key={y}
                       href={`${f.route}/${y}`}
