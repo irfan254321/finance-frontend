@@ -10,6 +10,7 @@ import {
 } from "@mui/material"
 import { Edit, Delete, Refresh, Search } from "@mui/icons-material"
 import CustomTextField from "@/components/ui/CustomTextField"
+import DeleteConfirmDialog from "@/components/ui/DeleteConfirmDialog"
 
 type Category = { id: number; name_category: string; created_at?: string }
 type Income = {
@@ -45,6 +46,15 @@ export default function EditIncomePage() {
   // 🔍 Search & Pagination
   const [catQuery, setCatQuery] = useState("")
   const [incQuery, setIncQuery] = useState("")
+  const [dateQuery, setDateQuery] = useState("") // <— New Date Search State
+  
+  // ===== DELETE DIALOG STATE =====
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    id: number | null;
+    type: "category" | "income"
+  }>({ open: false, id: null, type: "income" })
+
   const pageSize = 10
 
   const filteredCategories = useMemo(
@@ -60,9 +70,10 @@ export default function EditIncomePage() {
 
   const filteredIncomes = useMemo(
     () => incomes.filter(i =>
-      `${i.name_income} ${i.date_income} ${i.category_id}`.toLowerCase().includes(incQuery.toLowerCase())
+      `${i.name_income} ${i.category_id}`.toLowerCase().includes(incQuery.toLowerCase()) &&
+      (dateQuery ? i.date_income.includes(dateQuery) : true)
     ),
-    [incomes, incQuery]
+    [incomes, incQuery, dateQuery]
   )
   const incPageCount = Math.max(1, Math.ceil(filteredIncomes.length / pageSize))
   const [incPage, setIncPage] = useState(1)
@@ -112,15 +123,23 @@ export default function EditIncomePage() {
   }
 
   const deleteCategory = async (id: number) => {
-    if (!confirm("Hapus kategori ini?")) return
+    // if (!confirm("Hapus kategori ini?")) return
+    setDeleteDialog({ open: true, id, type: "category" })
+  }
+
+  const confirmDeleteCategory = async () => {
+    if (!deleteDialog.id) return
     try {
       setLoading(true)
-      await axiosInstance.delete(`/api/categoryIncome/${id}`)
+      await axiosInstance.delete(`/api/categoryIncome/${deleteDialog.id}`)
       setAlert({ open: true, message: "🗑️ Kategori dihapus", severity: "success" })
       getCategories()
     } catch (e: any) {
       setAlert({ open: true, message: getErrorMessage(e), severity: "error" })
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+      setDeleteDialog({ ...deleteDialog, open: false })
+    }
   }
 
   // ===== INCOME =====
@@ -161,15 +180,28 @@ export default function EditIncomePage() {
   }
 
   const deleteIncome = async (id: number) => {
-    if (!confirm("Hapus data income ini?")) return
+    // if (!confirm("Hapus data income ini?")) return
+    setDeleteDialog({ open: true, id, type: "income" })
+  }
+
+  const confirmDeleteIncome = async () => {
+    if (!deleteDialog.id) return
     try {
       setLoading(true)
-      await axiosInstance.delete(`/api/detailIncome/${id}`)
+      await axiosInstance.delete(`/api/detailIncome/${deleteDialog.id}`)
       setAlert({ open: true, message: "🗑️ Income dihapus", severity: "success" })
       getIncomes()
     } catch (e: any) {
       setAlert({ open: true, message: getErrorMessage(e), severity: "error" })
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+      setDeleteDialog({ ...deleteDialog, open: false })
+    }
+  }
+
+  const handleDeleteConfirm = () => {
+    if (deleteDialog.type === "category") return confirmDeleteCategory()
+    if (deleteDialog.type === "income") return confirmDeleteIncome()
   }
 
   return (
@@ -334,9 +366,16 @@ export default function EditIncomePage() {
                 <CustomTextField
                   fullWidth
                   size="small"
-                  placeholder="Cari income (nama/tanggal/category)..."
+                  placeholder="Cari income (nama/category)..."
                   value={incQuery}
                   onChange={(e: any) => setIncQuery(e.target.value)}
+                />
+                <CustomTextField
+                  type="date"
+                  size="small"
+                  value={dateQuery}
+                  onChange={(e: any) => setDateQuery(e.target.value)}
+                  sx={{ width: 200 }}
                 />
               </div>
               <Tooltip title="Refresh">
@@ -360,7 +399,7 @@ export default function EditIncomePage() {
                       <TableCell>{i.name_income}</TableCell>
                       <TableCell>{rupiah(i.amount_income)}</TableCell>
                       <TableCell>{i.category_id}</TableCell>
-                      <TableCell>{i.date_income}</TableCell>
+                      <TableCell>{new Date(i.date_income).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}</TableCell>
                       <TableCell>
                         <IconButton size="small" onClick={() => openEditIncome(i)} sx={{ color: "#FFE55C" }}>
                           <Edit fontSize="small" />
@@ -491,6 +530,16 @@ export default function EditIncomePage() {
             </Dialog>
           </section>
         )}
+
+        {/* DELETE CONFIRM DIALOG */}
+        <DeleteConfirmDialog
+          open={deleteDialog.open}
+          onClose={() => setDeleteDialog({ ...deleteDialog, open: false })}
+          onConfirm={handleDeleteConfirm}
+          title={`Hapus ${deleteDialog.type}?`}
+          description="Data yang dihapus tidak dapat dikembalikan."
+          loading={loading}
+        />
       </Box>
 
       {/* ALERT */}
