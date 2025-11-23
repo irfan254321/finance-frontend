@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g fill="#FF7F50">
+  <!-- pill -->
+  <rect x="12" y="22" rx="10" ry="10" width="40" height="20"/>
+  <rect x="12" y="22" rx="10" ry="10" width="20" height="20" fill="#FFFFFF" fill-opacity=".8"/>
+</g>
+</svg>

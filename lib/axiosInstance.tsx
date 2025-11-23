@@ -2,7 +2,7 @@ import axios from "axios"
 import Cookies from "js-cookie"
 
 const axiosInstance = axios.create({
-  baseURL: "http://127.0.0.1:3100",
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true, // ✅ kirim cookie JWT otomatis
   headers: { "Content-Type": "application/json" },
   timeout: 15000,

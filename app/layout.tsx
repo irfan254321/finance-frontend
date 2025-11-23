@@ -1,9 +1,9 @@
-// ❌ TIDAK ADA "use client" DI SINI
+
+
 import "./globals.css"
 import { ReactNode } from "react"
 import { AuthProvider } from "@/context/AuthContext"
 import NavbarSwitcher from "@/components/navbarSwitcher" // ✅ client component
-import FooterLogout from "@/components/footer"
 
 export const metadata = {
   title: "RS Bhayangkara M Hasan Palembang",
@@ -20,7 +20,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-[#1a2732] text-white min-h-screen">
         <AuthProvider>
           {/* ✅ Client component ditaruh di dalam */}
-          <NavbarSwitcher />
           <main>{children}</main>
         </AuthProvider>
       </body>

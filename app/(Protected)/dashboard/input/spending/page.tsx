@@ -1,1044 +1,303 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import axiosInstance from "@/lib/axiosInstance"
+import { useState, forwardRef } from "react"
+import { motion } from "framer-motion"
 import {
-    TextField,
-    MenuItem,
-    Button,
     Snackbar,
     Alert,
     CircularProgress,
-    Tabs,
-    Tab,
-    Box,
-    Divider,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    Paper,
-    Pagination,
+    Dialog,
     IconButton,
-    Tooltip,
 } from "@mui/material"
-import { motion } from "framer-motion"
+import Slide from "@mui/material/Slide"
+import type { SlideProps } from "@mui/material/Slide"
 import {
-    MonetizationOn,
+    AddCircleOutline,
     Category as CategoryIcon,
-    InfoOutlined,
-    Refresh,
-    UploadFile,
-    InsertDriveFile,
-    CloudUpload,
-    Download,
-    Business,
+    TableView,
+    Medication,
+    Close as CloseIcon,
 } from "@mui/icons-material"
-import * as XLSX from "xlsx"
 
-// ====== KONSTAN ID KATEGORI OBAT (Belanja Bakal Kesehatan) ======
-const OBAT_CATEGORY_ID = 9 as const
+import { useSpendingForm } from "@/hooks/spendingInput/useSpendingForm"
+import { useCategorySpending } from "@/hooks/spendingInput/useCategorySpending"
+import { useSpendingExcel } from "@/hooks/spendingInput/useSpendingExcel"
+import { useCompanyMedicine } from "@/hooks/spendingInput/useCompanyMedicine"
 
-type Category = { id: number; name_category: string }
-type Company = { id: number; name_company: string; created_at: string }
-type Unit = { id: number; name_unit: string; created_at: string }
+import TabSpending from "@/components/tabSpending/TabSpending"
+import TabCategory from "@/components/tabSpending/TabCategory"
+import TabExcel from "@/components/tabSpending/TabExcel"
+import TabCompany from "@/components/tabSpending/TabCompany"
 
-type MedicineRow = {
-    name_medicine: string
-    quantity: string | number
-    name_unit_id: string | number
-    price: string | number // total harga per baris (bukan unit price)
-}
+import { useEffect } from "react"
+
+// ================= Transition =================
+const Transition = forwardRef(function Transition(
+    props: SlideProps,
+    ref: React.Ref<unknown>
+) {
+    return <Slide direction="up" ref={ref} {...props} />
+})
+
+type DialogKey = "spending" | "category" | "excel" | "company" | null
 
 export default function InputSpendingPage() {
-    const [tab, setTab] = useState(0)
-    const [loading, setLoading] = useState(false)
-    const [file, setFile] = useState<File | null>(null)
-    const [previewData, setPreviewData] = useState<any[]>([])
-    const [selectedCompanyName, setSelectedCompanyName] = useState("")
-    const [companySuggestions, setCompanySuggestions] = useState<Company[]>([])
+    const spending = useSpendingForm()
+    const category = useCategorySpending()
+    const excel = useSpendingExcel()
+    const company = useCompanyMedicine()
 
-    // ✅ Tambahan: selector jenis upload (Umum / Obat) untuk Tab Import Excel (1 tombol)
-    const [jenisUpload, setJenisUpload] = useState<"umum" | "obat">("umum")
+    const [openDialog, setOpenDialog] = useState<DialogKey>(null)
 
-    // ===== FORM SPENDING =====
-    const [form, setForm] = useState({
-        name_spending: "",
-        amount_spending: "",
-        category_id: "",
-        date_spending: "",
-        company_id: "", // ⬅️ tambahkan company untuk kategori obat
-    })
+    const activeAlert =
+        spending.alert.open
+            ? spending
+            : category.alert.open
+                ? category
+                : excel.alert.open
+                    ? excel
+                    : company.alert.open
+                        ? company
+                        : null
 
-    // ===== CATEGORY STATE =====
-    const [categoryName, setCategoryName] = useState("")
-    const [categories, setCategories] = useState<Category[]>([])
+    const actions = [
+        {
+            key: "spending" as const,
+            title: "Input Spending",
+            description: "Catat pengeluaran harian rumah sakit.",
+            icon: <AddCircleOutline sx={{ fontSize: 40 }} />,
+        },
+        {
+            key: "category" as const,
+            title: "Kategori",
+            description: "Kelola kategori pengeluaran.",
+            icon: <CategoryIcon sx={{ fontSize: 40 }} />,
+        },
+        {
+            key: "excel" as const,
+            title: "Import Excel",
+            description: "Import data spending massal.",
+            icon: <TableView sx={{ fontSize: 40 }} />,
+        },
+        {
+            key: "company" as const,
+            title: "Company Medicine",
+            description: "Daftar perusahaan supplier obat.",
+            icon: <Medication sx={{ fontSize: 40 }} />,
+        },
+    ]
 
-    // ===== COMPANY MEDICINE (TAB 4) =====
-    const [companies, setCompanies] = useState<Company[]>([])
-    const [companyLoading, setCompanyLoading] = useState(false)
-    const [page, setPage] = useState(1)
-    const [formCompany, setFormCompany] = useState("")
-    const rowsPerPage = 10
-    const pageCount = Math.max(1, Math.ceil(companies.length / rowsPerPage))
-    const pagedCompanies = useMemo(() => {
-        const start = (page - 1) * rowsPerPage
-        return companies.slice(start, start + rowsPerPage)
-    }, [companies, page])
-
-    // ===== UNIT (untuk obat) =====
-    const [units, setUnits] = useState<Unit[]>([])
-    const [unitsLoading, setUnitsLoading] = useState(false)
-
-    // ===== MEDICINES (dynamic list untuk kategori OBAT) =====
-    const [medicines, setMedicines] = useState<MedicineRow[]>([
-        { name_medicine: "", quantity: "", name_unit_id: "", price: "" },
-    ])
-
-
-
-    // Total harga obat (jumlahkan price tiap baris; kosong dianggap 0)
-    const totalObat = useMemo(() => {
-        return medicines.reduce((sum, r) => {
-            const clean = String(r.price ?? "").replace(/[^0-9]/g, "")
-            const val = clean ? Number(clean) : 0
-            return sum + val
-        }, 0)
-    }, [medicines])
-
-    const [alert, setAlert] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error" | "info",
-    })
-
-    // ✅ Tambahan: loading overlay khusus upload Excel
-    const [uploading, setUploading] = useState(false)
-
-    // ===== FETCHERS =====
-    const getCategories = async () => {
-        try {
-            const res = await axiosInstance.get("/api/CategorySpending")
-            setCategories(res.data)
-        } catch (err) {
-            console.error("Gagal mengambil kategori spending:", err)
-            setAlert({ open: true, message: "Gagal memuat kategori.", severity: "error" })
-        }
-    }
-
-    const [search, setSearch] = useState("")
-    const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
-    const getCompanies = async (searchText?: string) => {
-        try {
-            setCompanyLoading(true)
-            const res = await axiosInstance.get("/api/CompanyMedicine", {
-                params: { search: searchText ?? search }
-            })
-            setCompanies(res.data)
-        } catch (err) {
-            console.error("Gagal mengambil company medicine:", err)
-            setAlert({ open: true, message: "Gagal memuat company medicine.", severity: "error" })
-        } finally {
-            setCompanyLoading(false)
-        }
-    }
+    const currentAction = actions.find((a) => a.key === openDialog) || null
 
     useEffect(() => {
-        if (search.length < 3) {
-            // kalau < 3 huruf, reset data (tampilkan semua)
-            getCompanies("")
-            return
-        }
-
-        if (typingTimeout) clearTimeout(typingTimeout)
-
-        const timeout = setTimeout(() => {
-            getCompanies(search)
-        }, 400) // debounce 400ms
-
-        setTypingTimeout(timeout)
-
-        return () => clearTimeout(timeout)
-    }, [search])
-
-    const getUnits = async () => {
-        try {
-            setUnitsLoading(true)
-            const res = await axiosInstance.get("/api/unitMedicine")
-            setUnits(res.data)
-        } catch (err) {
-            console.error("Gagal mengambil unit obat:", err)
-            setAlert({ open: true, message: "Gagal memuat unit obat.", severity: "error" })
-        } finally {
-            setUnitsLoading(false)
-        }
-    }
+        if (openDialog === "category") category.getCategories()
+    }, [openDialog])
 
     useEffect(() => {
-        getCategories()
-        getCompanies()
-        getUnits()
-    }, [])
+        if (openDialog === null) {
+            excel.setJenisUpload("umum")
+            excel.setAlert({ open: false, message: "", severity: "success" })
 
-    // ===== HANDLERS =====
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        setForm({ ...form, [name]: value })
-    }
+            category.setCategoryName("")
 
-    // angka → "Rp 1.234.567"
-    const formatRupiah = (num: number) =>
-        new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
-
-    // ===== DYNAMIC MEDICINE LIST HANDLERS =====
-    const handleAddMedicine = () => {
-        setMedicines((prev) => [...prev, { name_medicine: "", quantity: "", name_unit_id: "", price: "" }])
-    }
-
-    const handleRemoveMedicine = (index: number) => {
-        setMedicines((prev) => {
-            if (prev.length === 1) return prev
-            const next = [...prev]
-            next.splice(index, 1)
-            return next
-        })
-    }
-
-    const handleMedicineChange = (index: number, field: keyof MedicineRow, rawVal: string) => {
-        setMedicines((prev) => {
-            const next = [...prev]
-            if (field === "price") {
-                // simpan numeric only (tanpa "Rp" & titik) di state
-                const clean = rawVal.replace(/[^0-9]/g, "")
-                next[index][field] = clean
-            } else {
-                next[index][field] = rawVal
-            }
-            return next
-        })
-    }
-
-    // ===== SUBMIT SPENDING =====
-    const handleSubmitSpending = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!form.name_spending || !form.category_id || !form.date_spending) {
-            setAlert({ open: true, message: "Semua kolom wajib diisi!", severity: "error" })
-            return
-        }
-
-        // Jika kategori = OBAT → company wajib, dan minimal 1 baris obat valid
-        const isObat = String(form.category_id) === String(OBAT_CATEGORY_ID)
-        if (isObat) {
-            if (!form.company_id) {
-                setAlert({ open: true, message: "Untuk kategori obat, perusahaan wajib dipilih!", severity: "error" })
-                return
-            }
-            const validRows = medicines.filter(
-                (m) => m.name_medicine && Number(String(m.quantity || "0")) > 0 && Number(String(m.price || "0")) > 0 && m.name_unit_id
-            )
-            if (!validRows.length) {
-                setAlert({ open: true, message: "Tambahkan minimal 1 obat dengan data lengkap!", severity: "error" })
-                return
-            }
-        } else {
-            if (!form.amount_spending) {
-                setAlert({ open: true, message: "Jumlah (Rp) wajib diisi!", severity: "error" })
-                return
-            }
-        }
-
-        try {
-            setLoading(true)
-
-            const payload: any = {
-                ...form,
-                amount_spending: isObat ? Number(totalObat) : Number(form.amount_spending),
-                category_id: Number(form.category_id),
-            }
-
-            if (isObat) {
-                payload.company_id = Number(form.company_id)
-                payload.medicines = medicines
-                    .filter((m) => m.name_medicine && Number(String(m.quantity || "0")) > 0 && Number(String(m.price || "0")) > 0 && m.name_unit_id)
-                    .map((m) => ({
-                        name_medicine: m.name_medicine,
-                        quantity: Number(m.quantity),
-                        name_unit_id: Number(m.name_unit_id),
-                        price: Number(String(m.price).replace(/[^0-9]/g, "")), // kirim angka murni
-                    }))
-            }
-
-            const res = await axiosInstance.post("/api/inputSpendingDetail", payload)
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Data spending berhasil disimpan!",
-                    severity: "success",
-                })
-                // reset
-                setForm({
-                    name_spending: "",
-                    amount_spending: "",
-                    category_id: "",
-                    date_spending: "",
-                    company_id: "",
-                })
-                setMedicines([{ name_medicine: "", quantity: "", name_unit_id: "", price: "" }])
-            }
-        } catch (err: any) {
-            console.error(err)
-            setAlert({
-                open: true,
-                message: err?.response?.data || "Gagal menyimpan data!",
-                severity: "error",
+            spending.setForm({
+                name_spending: "",
+                amount_spending: "",
+                category_id: "",
+                date_spending: "",
+                company_id: "",
             })
-        } finally {
-            setLoading(false)
+            spending.setMedicines([
+                { name_medicine: "", quantity: "", name_unit_id: "", price: "" },
+            ])
+
+            company.setFormCompany("")
+            company.setSearch("")
+            company.setPage(1)
         }
-    }
-
-    // ===== SUBMIT CATEGORY =====
-    const handleSubmitCategory = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!categoryName.trim()) {
-            setAlert({ open: true, message: "Nama kategori tidak boleh kosong!", severity: "error" })
-            return
-        }
-        try {
-            setLoading(true)
-            const res = await axiosInstance.post("/api/inputCategorySpending", { name_category: categoryName })
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Kategori spending baru berhasil disimpan!",
-                    severity: "success",
-                })
-                setCategoryName("")
-                getCategories()
-            }
-        } catch (err: any) {
-            console.error(err)
-            setAlert({ open: true, message: err?.response?.data || "Gagal menyimpan kategori!", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    // ===== HANDLE EXCEL UPLOAD =====
-    const handleExcelSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const f = e.target.files?.[0]
-        if (!f) return
-        setFile(f)
-
-        const reader = new FileReader()
-        reader.onload = (event: any) => {
-            const workbook = XLSX.read(event.target.result, { type: "binary" })
-            const sheet = workbook.SheetNames[0]
-            const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheet])
-
-            // ✅ Validasi kolom wajib — tergantung JENIS UPLOAD
-            const requiredColsUmum = ["name_spending", "category_id", "date_spending", "amount_spending"]
-            const requiredColsObat = [
-                "name_spending",
-                "category_id",
-                "date_spending",
-                "company_id",
-                "name_medicine",
-                "quantity",
-                "unit_id",
-                "price_per_item",
-            ]
-            const requiredCols = jenisUpload === "umum" ? requiredColsUmum : requiredColsObat
-
-            const missingCols = requiredCols.filter((col) => !Object.keys(rawData[0] || {}).includes(col))
-            if (missingCols.length > 0) {
-                setAlert({
-                    open: true,
-                    message: `❌ Kolom berikut hilang di Excel: ${missingCols.join(", ")}`,
-                    severity: "error",
-                })
-                setFile(null)
-                setPreviewData([])
-                return
-            }
-
-            // ✅ Normalisasi data angka & tanggal biar preview lebih rapi
-            const normalized = rawData.map((row: any) => {
-                const base: any = {
-                    name_spending: row.name_spending || "",
-                    category_id: Number(row.category_id || 0),
-                    date_spending: row.date_spending || "",
-                }
-                if (jenisUpload === "umum") {
-                    base.amount_spending = row.amount_spending ? Number(row.amount_spending) : ""
-                    return base
-                } else {
-                    base.company_id = row.company_id ? Number(row.company_id) : ""
-                    base.name_medicine = row.name_medicine || ""
-                    base.quantity = row.quantity ? Number(row.quantity) : ""
-                    base.unit_id = row.unit_id ? Number(row.unit_id) : ""
-                    base.price_per_item = row.price_per_item ? Number(row.price_per_item) : ""
-                    return base
-                }
-            })
-
-            setPreviewData(normalized)
-        }
-        reader.readAsBinaryString(f)
-    }
-
-    const handleUploadExcel = async () => {
-        if (!file) return setAlert({ open: true, message: "📂 Pilih file Excel!", severity: "error" })
-
-        try {
-            setUploading(true) // ✅ Overlay on
-            const formData = new FormData()
-            formData.append("file", file)
-
-            const url = jenisUpload === "umum"
-                ? "/api/uploadSpendingExcelGeneral"
-                : "/api/uploadSpendingExcelObat"
-
-            const res = await axiosInstance.post(url, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            })
-
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: res.data.message || "✅ Import Excel berhasil!",
-                    severity: "success",
-                })
-                // Reset agar bisa pilih file lagi
-                setFile(null)
-                setPreviewData([])
-
-                // ⏱️ Jeda UX kecil lalu reload full page
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1200)
-            }
-        } catch (err: any) {
-            console.error(err)
-            setAlert({
-                open: true,
-                message: err?.response?.data || "❌ Gagal upload file! Pastikan format Excel sesuai.",
-                severity: "error",
-            })
-        } finally {
-            setUploading(false) // kalau gagal, overlay dimatikan
-        }
-    }
-
-
-    // ===== DOWNLOAD TEMPLATE EXCEL (sinkron dgn jenisUpload) =====
-    const handleDownloadTemplate = () => {
-        if (jenisUpload === "umum") {
-            const rows = [
-                {
-                    name_spending: "Belanja Operasional",
-                    category_id: 4,
-                    date_spending: "2025-01-10",
-                    amount_spending: 50000000,
-                },
-            ]
-            const ws = XLSX.utils.json_to_sheet(rows)
-            const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, ws, "spending_umum")
-            XLSX.writeFile(wb, "template_spending_umum.xlsx")
-            setAlert({ open: true, message: "📥 Template Spending Umum diunduh!", severity: "success" })
-        } else {
-            const rows = [
-                {
-                    name_spending: "Belanja Obat Januari",
-                    category_id: 9,
-                    date_spending: "2025-01-01",
-                    company_id: 1,
-                    name_medicine: "Paracetamol",
-                    quantity: 200,
-                    unit_id: 1,
-                    price_per_item: 2000,
-                },
-                {
-                    name_spending: "Belanja Obat Januari",
-                    category_id: 9,
-                    date_spending: "2025-01-01",
-                    company_id: 1,
-                    name_medicine: "Asam Mefenamat",
-                    quantity: 150,
-                    unit_id: 2,
-                    price_per_item: 3000,
-                },
-            ]
-            const ws = XLSX.utils.json_to_sheet(rows)
-            const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, ws, "spending_obat")
-            XLSX.writeFile(wb, "template_spending_obat.xlsx")
-            setAlert({ open: true, message: "📥 Template Spending Obat diunduh!", severity: "success" })
-        }
-    }
-
-    const isObat = String(form.category_id) === String(OBAT_CATEGORY_ID)
+    }, [openDialog])
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-[#E8EBEF] via-[#F9FAFB] to-[#E8EBEF] px-6 pt-32 pb-20">
+        <main
+            className="
+            min-h-screen font-serif text-[#ECECEC] px-6 md:px-20 py-24
+            bg-[#0b0e13]
+            bg-gradient-to-b from-[#0f141a] via-[#111720] to-[#0b0e14]
+            relative overflow-hidden
+        "
+        >
+            {/* Premium Spotlight */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[450px] w-[450px] bg-[#FFD700]/10 blur-[140px] rounded-full"></div>
+            </div>
+
             {/* HEADER */}
             <motion.div
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: -25 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="text-center mb-14"
+                transition={{ duration: 0.7 }}
+                className="text-center mb-16"
             >
-                <div className="flex justify-center items-center gap-6">
-                    <MonetizationOn sx={{ fontSize: 70, color: "#FFD700" }} />
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        INPUT SPENDING
-                    </h1>
-                </div>
-                <div>
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        RS BHAYANGKARA M HASAN PALEMBANG
-                    </h1>
-                </div>
-                <div className="w-36 h-[4px] bg-gradient-to-r from-[#2C3E50] to-[#FFD700] mx-auto mt-5 rounded-full"></div>
+                <h1 className="text-5xl md:text-6xl font-extrabold text-[#FFD700] drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]">
+                    INPUT PENGELUARAN RUMAH SAKIT
+                </h1>
+                <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
+                    Kelola semua data pengeluaran dengan UI premium & transparan.
+                </p>
             </motion.div>
 
-            {/* TABS */}
-            <Box
-                sx={{
-                    width: "100%",
-                    maxWidth: "1100px",
-                    mb: 6,
-                    bgcolor: "rgba(255,255,255,0.95)",
-                    borderRadius: "24px",
-                    boxShadow: "0 15px 40px rgba(0,0,0,0.12)",
+            {/* ACTION CARDS */}
+            <section className="max-w-5xl mx-auto">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                >
+                    {actions.map((action) => (
+                        <motion.button
+                            key={action.key}
+                            onClick={() => setOpenDialog(action.key)}
+                            whileHover={{ y: -6, scale: 1.03 }}
+                            transition={{ type: "spring", stiffness: 160, damping: 15 }}
+                            className="
+                                group relative overflow-hidden
+                                text-left rounded-3xl p-7
+                                bg-white/5 
+                                backdrop-blur-xl 
+                                border border-[#FFD700]/20
+                                shadow-[0_8px_30px_rgba(0,0,0,0.45)]
+                                hover:shadow-[0_0_40px_rgba(255,215,0,0.18)]
+                                transition-all duration-300
+                                flex flex-col gap-3
+                            "
+                        >
+                            {/* Gold glow on hover */}
+                            <div
+                                className="
+                                absolute inset-0 opacity-0 group-hover:opacity-25 
+                                bg-gradient-to-br from-[#FFD700]/25 to-transparent
+                                transition-opacity duration-300
+                            "
+                            />
+
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 rounded-2xl bg-[#FFD700]/10 group-hover:bg-[#FFD700]/20 transition">
+                                    {action.icon}
+                                </div>
+                                <h2 className="text-xl md:text-2xl font-semibold text-[#FFD700] drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]">
+                                    {action.title}
+                                </h2>
+                            </div>
+
+                            <p className="text-sm md:text-base text-gray-300 leading-relaxed">
+                                {action.description}
+                            </p>
+                        </motion.button>
+                    ))}
+                </motion.div>
+            </section>
+
+            {/* ===================== DIALOG ===================== */}
+            <Dialog
+                open={openDialog !== null}
+                onClose={() => setOpenDialog(null)}
+                fullWidth
+                maxWidth="xl"
+                TransitionComponent={Transition}
+                PaperProps={{
+                    sx: {
+                        background: "rgba(15,20,26,0.65)",
+                        backdropFilter: "blur(14px)",
+                        borderRadius: "26px",
+                        border: "1px solid rgba(255,215,0,0.25)",
+                        boxShadow:
+                            "0 0 60px rgba(255,215,0,0.06), 0 0 90px rgba(0,0,0,0.7)",
+                        height: "90vh",
+                        overflow: "hidden",
+                    },
                 }}
             >
-                <Tabs
-                    value={tab}
-                    onChange={(_, v) => setTab(v)}
-                    centered
-                    TabIndicatorProps={{
-                        style: {
-                            background: "linear-gradient(90deg,#2C3E50 0%,#FFD700 100%)",
-                            height: "5px",
-                            borderRadius: "5px",
+                <div className="flex flex-col w-full h-full overflow-hidden">
+
+                    {/* HEADER */}
+                    <div className="
+                        flex items-center justify-between 
+                        px-8 pt-6 pb-4 
+                        border-b border-[#FFD700]/20 
+                        bg-gradient-to-r from-transparent via-[#FFD700]/10 to-transparent
+                        backdrop-blur-sm
+                        flex-shrink-0
+                    ">
+                        <h2 className="text-2xl font-semibold text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]">
+                            {currentAction?.title}
+                        </h2>
+
+                        <IconButton
+                            onClick={() => setOpenDialog(null)}
+                            sx={{
+                                color: "#FFD700",
+                                "&:hover": {
+                                    backgroundColor: "rgba(255,215,0,0.15)",
+                                    boxShadow: "0 0 12px rgba(255,215,0,0.4)",
+                                },
+                            }}
+                        >
+                            <CloseIcon sx={{ fontSize: 35 }} />
+                        </IconButton>
+                    </div>
+
+                    {/* CONTENT */}
+                    <div className="flex-1 overflow-y-auto px-6 py-6">
+                        <div className="max-w-5xl mx-auto">
+                            {openDialog === "spending" && <TabSpending {...spending} />}
+                            {openDialog === "category" && <TabCategory {...category} />}
+                            {openDialog === "excel" && <TabExcel {...excel} />}
+                            {openDialog === "company" && <TabCompany {...company} />}
+                        </div>
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* ALERT */}
+            {activeAlert && (
+                <Snackbar
+                    open={activeAlert.alert.open}
+                    autoHideDuration={3000}
+                    onClose={() =>
+                        activeAlert.setAlert((prev: any) => ({ ...prev, open: false }))
+                    }
+                    anchorOrigin={{ vertical: "top", horizontal: "right" }}
+                    sx={{
+                        zIndex: 9999,
+                        "& .MuiAlert-root": {
+                            backgroundColor:
+                                activeAlert.alert.severity === "success"
+                                    ? "rgba(46, 204, 113, 0.95)"
+                                    : "rgba(231, 76, 60, 0.95)",
+                            color: "#fff",
+                            fontSize: "1.1rem",
+                            padding: "16px 24px",
+                            borderRadius: "14px",
+                            boxShadow: "0 0 30px rgba(0,0,0,0.35)",
                         },
                     }}
                 >
-                    <Tab icon={<MonetizationOn />} label="Input Spending" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<CategoryIcon />} label="Input Kategori" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<UploadFile />} label="Import Excel" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                    <Tab icon={<Business />} label="Company Medicine" sx={{ fontSize: "1.2rem", fontWeight: "bold" }} />
-                </Tabs>
-            </Box>
-
-            {/* TAB 1: INPUT SPENDING */}
-            {tab === 0 && (
-                <motion.div
-                    key="spending"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16"
-                >
-                    <form onSubmit={handleSubmitSpending} className="flex flex-col gap-8">
-                        <TextField
-                            label="Nama Pengeluaran"
-                            name="name_spending"
-                            fullWidth
-                            value={form.name_spending}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        {/* ===== Jumlah (Rp) =====
-                - Jika kategori OBAT → readonly & otomatis dari total obat
-                - Selain OBAT → manual input seperti biasa */}
-                        <TextField
-                            label="Jumlah (Rp)"
-                            name="amount_spending"
-                            fullWidth
-                            value={
-                                isObat
-                                    ? (totalObat ? `Rp ${formatRupiah(totalObat)}` : "")
-                                    : form.amount_spending
-                                        ? "Rp " +
-                                        new Intl.NumberFormat("id-ID", {
-                                            minimumFractionDigits: 0,
-                                            maximumFractionDigits: 0,
-                                        }).format(Number(form.amount_spending))
-                                        : ""
-                            }
-                            onChange={(e) => {
-                                if (isObat) return // ignore; otomatis
-                                const raw = e.target.value.replace(/[^0-9]/g, "")
-                                setForm({ ...form, amount_spending: raw })
-                            }}
-                            InputProps={{
-                                inputMode: "numeric",
-                                readOnly: isObat,
-                                sx: { fontSize: "1.2rem", height: 70, pl: 1, bgcolor: isObat ? "rgba(255,215,0,0.06)" : "inherit" },
-                            }}
-                            InputLabelProps={{
-                                sx: { fontSize: "1.1rem" },
-                            }}
-                            required={!isObat}
-                        />
-
-                        <TextField
-                            select
-                            label="Kategori"
-                            name="category_id"
-                            fullWidth
-                            value={form.category_id}
-                            onChange={handleChange}
-                            required
-                        >
-                            {categories.length > 0 ? (
-                                categories.map((cat) => (
-                                    <MenuItem key={cat.id} value={cat.id}>
-                                        {cat.name_category}
-                                    </MenuItem>
-                                ))
-                            ) : (
-                                <MenuItem disabled>Memuat kategori...</MenuItem>
-                            )}
-                        </TextField>
-
-                        {/* ======= Kalau kategori OBAT, tampilkan Company + Dynamic List Obat ======= */}
-                        {isObat && (
-                            <>
-                                <div className="relative">
-                                    <TextField
-                                        label="Perusahaan (min 3 huruf)"
-                                        name="company_name"
-                                        fullWidth
-                                        value={selectedCompanyName}
-                                        onChange={(e) => {
-                                            const val = e.target.value
-                                            setSelectedCompanyName(val)
-
-                                            // reset company_id di form kalau ganti nama
-                                            setForm({ ...form, company_id: "" })
-
-                                            if (!val.trim()) {
-                                                setCompanySuggestions([])
-                                                return
-                                            }
-
-                                            if (val.trim().length < 3) {
-                                                setCompanySuggestions([])
-                                                return
-                                            }
-
-                                            // debounce biar gak spam query
-                                            if (typingTimeout) clearTimeout(typingTimeout)
-                                            const timeout = setTimeout(async () => {
-                                                try {
-                                                    const res = await axiosInstance.get("/api/CompanyMedicine", {
-                                                        params: { search: val.trim() },
-                                                    })
-                                                    setCompanySuggestions(res.data.slice(0, 8))
-                                                } catch (err) {
-                                                    console.error("Gagal mencari perusahaan:", err)
-                                                }
-                                            }, 400)
-                                            setTypingTimeout(timeout)
-                                        }}
-                                        required
-                                        InputProps={{
-                                            sx: { fontSize: "1.1rem", height: 70 },
-                                        }}
-                                        InputLabelProps={{
-                                            sx: { fontSize: "1.1rem" },
-                                        }}
-                                        helperText={
-                                            form.company_id
-                                                ? `Terpilih: ${selectedCompanyName} (ID: ${form.company_id})`
-                                                : "Ketik minimal 3 huruf nama perusahaan"
-                                        }
-                                    />
-
-                                    {/* 🔍 Dropdown hasil pencarian */}
-                                    {companySuggestions.length > 0 && (
-                                        <div className="absolute z-10 bg-white border border-gray-300 rounded-lg shadow-lg mt-1 w-full max-h-56 overflow-auto">
-                                            {companySuggestions.map((c) => (
-                                                <div
-                                                    key={c.id}
-                                                    onClick={() => {
-                                                        // Saat diklik, tampilin nama tapi simpan ID
-                                                        setSelectedCompanyName(c.name_company)
-                                                        setForm({ ...form, company_id: String(c.id) })
-                                                        setCompanySuggestions([])
-                                                    }}
-                                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                                                >
-                                                    <b>{c.name_company}</b> <span className="text-gray-500">({c.id})</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <Divider sx={{ my: 2 }} />
-                                <h2 className="text-2xl font-serif font-bold text-[#2C3E50]">🧪 Detail Obat yang Dibeli</h2>
-                                <p className="text-sm text-gray-600 mb-2">Harga per baris = total harga obat (bukan harga satuan). Total Rp otomatis dijumlahkan.</p>
-
-                                {medicines.map((m, i) => (
-                                    <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                                        <div className="md:col-span-5">
-                                            <TextField
-                                                label={`Nama Obat #${i + 1}`}
-                                                value={m.name_medicine}
-                                                onChange={(e) => handleMedicineChange(i, "name_medicine", e.target.value)}
-                                                fullWidth
-                                                required
-                                            />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <TextField
-                                                label="Qty"
-                                                type="number"
-                                                value={m.quantity}
-                                                onChange={(e) => handleMedicineChange(i, "quantity", e.target.value)}
-                                                fullWidth
-                                                required
-                                            />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <TextField
-                                                select
-                                                label="Unit"
-                                                value={m.name_unit_id}
-                                                onChange={(e) => handleMedicineChange(i, "name_unit_id", e.target.value)}
-                                                fullWidth
-                                                required
-                                            >
-                                                {unitsLoading ? (
-                                                    <MenuItem disabled>Memuat unit...</MenuItem>
-                                                ) : units.length ? (
-                                                    units.map((u) => (
-                                                        <MenuItem key={u.id} value={u.id}>
-                                                            {u.name_unit}
-                                                        </MenuItem>
-                                                    ))
-                                                ) : (
-                                                    <MenuItem disabled>Belum ada unit</MenuItem>
-                                                )}
-                                            </TextField>
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <TextField
-                                                label="Harga (Rp)"
-                                                value={m.price ? `Rp ${formatRupiah(Number(String(m.price).replace(/[^0-9]/g, "")))}` : ""}
-                                                onChange={(e) => handleMedicineChange(i, "price", e.target.value)}
-                                                fullWidth
-                                                InputProps={{ inputMode: "numeric" }}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="md:col-span-1">
-                                            <Button
-                                                color="error"
-                                                variant="outlined"
-                                                onClick={() => handleRemoveMedicine(i)}
-                                                disabled={medicines.length === 1}
-                                            >
-                                                Hapus
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                <div className="flex items-center gap-3 mt-2">
-                                    <Button variant="outlined" onClick={handleAddMedicine}>
-                                        ➕ Tambah Obat
-                                    </Button>
-                                    <div className="ml-auto text-right">
-                                        <div className="text-sm text-gray-600">Total Obat</div>
-                                        <div className="text-2xl font-bold text-[#2C3E50]">Rp {formatRupiah(totalObat)}</div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        <TextField
-                            label="Tanggal"
-                            name="date_spending"
-                            type="date"
-                            fullWidth
-                            value={form.date_spending}
-                            onChange={handleChange}
-                            InputLabelProps={{ shrink: true }}
-                            required
-                        />
-
-                        <Button type="submit" variant="contained" disabled={loading} sx={{ mt: 2, py: 2, fontSize: "1.1rem" }}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Data Spending"}
-                        </Button>
-                    </form>
-                </motion.div>
+                    <Alert severity={activeAlert.alert.severity} variant="filled">
+                        {activeAlert.alert.message}
+                    </Alert>
+                </Snackbar>
             )}
 
-            {/* TAB 2: INPUT KATEGORI */}
-            {tab === 1 && (
-                <motion.div
-                    key="category"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16"
-                >
-                    <form onSubmit={handleSubmitCategory} className="flex flex-col gap-8 mb-8">
-                        <TextField
-                            label="Nama Kategori Baru (Spending)"
-                            fullWidth
-                            value={categoryName}
-                            onChange={(e) => setCategoryName(e.target.value)}
-                            required
-                        />
-                        <Button type="submit" variant="contained" disabled={loading}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Kategori"}
-                        </Button>
-                    </form>
-
-                    <Divider sx={{ mb: 3 }} />
-                    <div className="flex justify-between items-center mb-3">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <InfoOutlined sx={{ fontSize: 40 }} /> Daftar Kategori Spending
-                        </h2>
-                        <Button onClick={getCategories} startIcon={<Refresh />} variant="outlined">
-                            Refresh
-                        </Button>
-                    </div>
-
-                    <ul className="list-disc ml-6 text-xl text-[#3b4650] leading-relaxed">
-                        {categories.length > 0 ? (
-                            categories.map((cat) => <li key={cat.id}><b>{cat.name_category}</b></li>)
-                        ) : (
-                            <p>Belum ada kategori.</p>
-                        )}
-                    </ul>
-                </motion.div>
-            )}
-
-            {/* TAB 3: IMPORT EXCEL (❗️Dipertahankan, hanya DITAMBAH selector jenis upload) */}
-            {tab === 2 && (
-                <motion.div
-                    key="excel"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-16 text-center"
-                >
-                    <CloudUpload sx={{ fontSize: 80, color: "#2C3E50" }} />
-                    <h2 className="text-4xl font-serif font-bold text-[#2C3E50] mt-4 mb-6">
-                        Upload File Excel Spending
-                    </h2>
-
-                    {/* ✅ Tambahan: pilih jenis upload */}
-                    <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-6">
-                        <div className="md:col-span-1 text-left md:text-right pr-0 md:pr-4 font-semibold text-[#2C3E50]">
-                            Jenis Upload
-                        </div>
-                        <div className="md:col-span-2">
-                            <TextField
-                                select
-                                fullWidth
-                                value={jenisUpload}
-                                onChange={(e) => setJenisUpload(e.target.value as "umum" | "obat")}
-                            >
-                                <MenuItem value="umum">Spending Umum (tanpa obat)</MenuItem>
-                                <MenuItem value="obat">Spending Obat (kategori 9)</MenuItem>
-                            </TextField>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-center gap-4 mb-8">
-                        <Button component="label" variant="outlined" startIcon={<InsertDriveFile />} sx={{ fontWeight: "bold", px: 4 }}>
-                            Pilih File Excel
-                            <input hidden type="file" accept=".xlsx,.xls" onChange={handleExcelSelect} />
-                        </Button>
-                        <Button onClick={handleDownloadTemplate} variant="outlined" startIcon={<Download />} sx={{ fontWeight: "bold", px: 4 }}>
-                            Download Template {jenisUpload === "umum" ? "Umum" : "Obat"}
-                        </Button>
-                    </div>
-
-                    {file && <p className="text-lg text-[#2C3E50] mb-6">📂 {file.name}</p>}
-
-                    {previewData.length > 0 && (
-                        <Paper sx={{ maxHeight: 400, overflow: "auto", mb: 4 }}>
-                            <Table stickyHeader>
-                                <TableHead>
-                                    <TableRow>
-                                        {Object.keys(previewData[0]).map((key) => (
-                                            <TableCell key={key} sx={{ fontWeight: "bold", background: "#2C3E50", color: "white" }}>
-                                                {key}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {previewData.map((row, i) => (
-                                        <TableRow key={i}>
-                                            {Object.values(row).map((val, j) => (
-                                                <TableCell key={j}>{String(val)}</TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Paper>
-                    )}
-
-                    <Button onClick={handleUploadExcel} variant="contained" disabled={previewData.length === 0}>
-                        {uploading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel Spending"}
-                    </Button>
-                </motion.div>
-            )}
-
-            {/* TAB 4: COMPANY MEDICINE (INPUT + PAGINATION) */}
-            {tab === 3 && (
-                <motion.div
-                    key="company"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-12"
-                >
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <Business /> Input & Daftar Company Medicine
-                        </h2>
-                    </div>
-
-                    {/* ====== FORM INPUT COMPANY ====== */}
-                    <form
-                        onSubmit={async (e) => {
-                            e.preventDefault()
-                            if (!formCompany.trim()) {
-                                setAlert({ open: true, message: "Nama perusahaan wajib diisi!", severity: "error" })
-                                return
-                            }
-                            try {
-                                setCompanyLoading(true)
-                                const res = await axiosInstance.post("/api/inputCompanyMedicine", { name_company: formCompany })
-                                if (res.status === 200) {
-                                    setAlert({ open: true, message: "✅ Perusahaan baru disimpan!", severity: "success" })
-                                    setFormCompany("")
-                                    getCompanies()
-                                }
-                            } catch (err) {
-                                console.error(err)
-                                setAlert({ open: true, message: "Gagal simpan perusahaan!", severity: "error" })
-                            } finally {
-                                setCompanyLoading(false)
-                            }
-                        }}
-                        className="flex flex-col md:flex-row gap-4 mb-8"
-                    >
-                        <TextField
-                            label="Nama Perusahaan Baru"
-                            fullWidth
-                            value={formCompany}
-                            onChange={(e) => setFormCompany(e.target.value)}
-                            required
-                        />
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            disabled={companyLoading}
-                            sx={{ px: 6, fontWeight: "bold" }}
-                        >
-                            {companyLoading ? <CircularProgress size={24} /> : "Simpan"}
-                        </Button>
-                    </form>
-
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <Business /> Input & Daftar Company Medicine
-                        </h2>
-                        <div className="flex gap-2">
-                            <TextField
-                                size="small"
-                                placeholder="Cari perusahaan..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* ====== TABLE COMPANY LIST ====== */}
-                    <Paper sx={{ width: "100%", overflow: "hidden" }}>
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: "bold" }}>No</TableCell>
-                                    <TableCell sx={{ fontWeight: "bold" }}>Nama Perusahaan</TableCell>
-                                    <TableCell sx={{ fontWeight: "bold" }}>Created At</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {companyLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={3}>
-                                            <div className="w-full flex justify-center py-6"><CircularProgress /></div>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : pagedCompanies.length > 0 ? (
-                                    pagedCompanies.map((c, idx) => (
-                                        <TableRow key={c.id}>
-                                            <TableCell>{c.id}</TableCell>
-                                            <TableCell>{c.name_company}</TableCell>
-                                            <TableCell>{new Date(c.created_at).toLocaleString("id-ID")}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3}>Belum ada data company.</TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-
-                        </Table>
-                    </Paper>
-
-                    <div className="w-full flex justify-center mt-6">
-                        <Pagination
-                            count={pageCount}
-                            page={page}
-                            onChange={(_, v) => setPage(v)}
-                            color="primary"
-                            showFirstButton
-                            showLastButton
-                        />
-                    </div>
-                </motion.div>
-            )}
-
-            {/* === OVERLAY LOADING (FULL SCREEN, SEMI-TRANSPARAN + BLUR) === */}
-            {uploading && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-white/60 shadow-xl border border-white/40">
-                        <CircularProgress size={44} />
-                        <p className="text-lg font-medium text-[#2C3E50]">⏳ Sedang memproses, tunggu sebentar…</p>
+            {/* OVERLAY IMPORT EXCEL */}
+            {excel.uploading && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-md">
+                    <div className="flex flex-col items-center gap-4 px-8 py-6 bg-[#12171d]/80 rounded-2xl border border-[#FFD700]/30 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                        <CircularProgress size={44} sx={{ color: "#FFD700" }} />
+                        <p className="text-lg text-[#FFD700]">Mengimpor data Excel…</p>
                     </div>
                 </div>
             )}
-
-            {/* ALERT */}
-            <Snackbar
-                open={alert.open}
-                autoHideDuration={3000}
-                onClose={() => setAlert({ ...alert, open: false })}
-                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            >
-                <Alert severity={alert.severity} variant="filled" sx={{ fontSize: "1.05rem", borderRadius: "10px" }}>
-                    {alert.message}
-                </Alert>
-            </Snackbar>
-        </div>
+        </main>
     )
 }

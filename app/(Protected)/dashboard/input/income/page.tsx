@@ -1,425 +1,294 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import axiosInstance from "@/lib/axiosInstance"
-import {
-    TextField,
-    MenuItem,
-    Button,
-    Snackbar,
-    Alert,
-    CircularProgress,
-    Tabs,
-    Tab,
-    Box,
-    Divider,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    Paper,
-} from "@mui/material"
+import { useState, useEffect, forwardRef } from "react"
 import { motion } from "framer-motion"
 import {
-    MonetizationOn,
-    Category,
-    InfoOutlined,
-    Refresh,
-    UploadFile,
-    InsertDriveFile,
-    CloudUpload,
-    Download,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Dialog,
+  IconButton,
+} from "@mui/material"
+import Slide from "@mui/material/Slide"
+import type { SlideProps } from "@mui/material/Slide"
+import {
+  AddCircleOutline,
+  Category as CategoryIcon,
+  TableView,
+  Close as CloseIcon,
 } from "@mui/icons-material"
-import * as XLSX from "xlsx"
+
+// HOOKS
+import { useIncomeForm } from "@/hooks/incomeInput/useIncomeForm"
+import { useCategoryIncome } from "@/hooks/incomeInput/useCategoryIncome"
+import { useIncomeExcel } from "@/hooks/incomeInput/useIncomeExcel"
+
+// TABS
+import TabIncome from "@/components/tabIncome/TabIncome"
+import TabCategory from "@/components/tabIncome/TabCategory"
+import TabExcel from "@/components/tabIncome/TabExcel"
+
+
+// ================= Transition Slide =================
+const Transition = forwardRef(function Transition(
+  props: SlideProps,
+  ref: React.Ref<unknown>
+) {
+  return <Slide direction="up" ref={ref} {...props} />
+})
+
+type DialogKey = "income" | "category" | "excel" | null
 
 export default function InputIncomePage() {
-    const [tab, setTab] = useState(0)
-    const [loading, setLoading] = useState(false)
-    const [uploading, setUploading] = useState(false) // ✅ loading khusus upload Excel (overlay)
-    const [file, setFile] = useState<File | null>(null)
-    const [previewData, setPreviewData] = useState<any[]>([])
+  const income = useIncomeForm()
+  const category = useCategoryIncome()
+  const excel = useIncomeExcel(category?.categories || [])
 
-    // === FORM INCOME ===
-    const [form, setForm] = useState({
+  const [openDialog, setOpenDialog] = useState<DialogKey>(null)
+
+  // ALERT unified
+  const activeAlert =
+    income.alert.open
+      ? { ...income.alert, setAlert: income.setAlert }
+      : category.alert.open
+      ? { ...category.alert, setAlert: category.setAlert }
+      : excel.alert.open
+      ? { ...excel.alert, setAlert: excel.setAlert }
+      : null
+
+  const actions = [
+    {
+      key: "income" as const,
+      title: "Input Income",
+      description: "Catat pemasukan rumah sakit.",
+      icon: <AddCircleOutline sx={{ fontSize: 40 }} />,
+    },
+    {
+      key: "category" as const,
+      title: "Kategori",
+      description: "Kelola kategori pemasukan.",
+      icon: <CategoryIcon sx={{ fontSize: 40 }} />,
+    },
+    {
+      key: "excel" as const,
+      title: "Import Excel",
+      description: "Import data pemasukan massal.",
+      icon: <TableView sx={{ fontSize: 40 }} />,
+    },
+  ]
+
+  const currentAction = actions.find((a) => a.key === openDialog) || null
+
+  // Auto-reset forms ketika dialog ditutup
+  useEffect(() => {
+    if (openDialog === null) {
+      income.setForm({
         name_income: "",
         amount_income: "",
         category_id: "",
         date_income: "",
-    })
+      })
 
-    // === FORM CATEGORY ===
-    const [categoryName, setCategoryName] = useState("")
-    const [categories, setCategories] = useState<{ id: number; name_category: string }[]>([])
-
-    const [alert, setAlert] = useState({
-        open: false,
-        message: "",
-        severity: "success" as "success" | "error",
-    })
-
-    // === FETCH CATEGORIES ===
-    const getCategories = async () => {
-        try {
-            const res = await axiosInstance.get("/api/categoryIncome")
-            setCategories(res.data)
-        } catch (err) {
-            console.error("Gagal mengambil kategori:", err)
-        }
+      category.setCategoryName("")
+      excel.setFile(null)
+      excel.setPreviewData([])
     }
+  }, [openDialog])
 
-    useEffect(() => {
-        getCategories()
-    }, [])
+  return (
+    <main
+      className="
+        min-h-screen font-serif text-[#ECECEC] px-6 md:px-20 py-24
+        bg-gradient-to-b from-[#0f141a] via-[#111720] to-[#0b0e14]
+        relative overflow-hidden
+      "
+    >
+      {/* Spotlight */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[450px] w-[450px] bg-[#FFD700]/10 blur-[140px] rounded-full"></div>
+      </div>
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        setForm({ ...form, [name]: value })
-    }
+      {/* HEADER */}
+      <motion.div
+        initial={{ opacity: 0, y: -25 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7 }}
+        className="text-center mb-16"
+      >
+        <h1 className="text-5xl md:text-6xl font-extrabold text-[#FFD700] drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]">
+          INPUT PEMASUKAN RUMAH SAKIT
+        </h1>
+        <p className="text-gray-300 mt-4 text-lg max-w-3xl mx-auto">
+          Kelola seluruh pemasukan dengan UI premium, modern, dan transparan.
+        </p>
+      </motion.div>
 
-    // === SUBMIT INCOME ===
-    const handleSubmitIncome = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!form.name_income || !form.amount_income || !form.category_id || !form.date_income) {
-            setAlert({ open: true, message: "Semua kolom wajib diisi!", severity: "error" })
-            return
-        }
+      {/* ACTION CARDS */}
+      <section className="max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+        >
+          {actions.map((action) => (
+            <motion.button
+              key={action.key}
+              onClick={() => setOpenDialog(action.key)}
+              whileHover={{ y: -6, scale: 1.03 }}
+              transition={{ type: "spring", stiffness: 160, damping: 15 }}
+              className="
+                group relative overflow-hidden
+                text-left rounded-3xl p-7
+                bg-white/5 
+                backdrop-blur-xl 
+                border border-[#FFD700]/20
+                shadow-[0_8px_30px_rgba(0,0,0,0.45)]
+                hover:shadow-[0_0_40px_rgba(255,215,0,0.18)]
+                transition-all duration-300
+                flex flex-col gap-3
+              "
+            >
+              <div
+                className="
+                  absolute inset-0 opacity-0 group-hover:opacity-25 
+                  bg-gradient-to-br from-[#FFD700]/25 to-transparent
+                  transition-opacity duration-300
+                "
+              />
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-[#FFD700]/10 group-hover:bg-[#FFD700]/20 transition">
+                  {action.icon}
+                </div>
+                <h2 className="text-xl md:text-2xl font-semibold text-[#FFD700] drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]">
+                  {action.title}
+                </h2>
+              </div>
+              <p className="text-sm md:text-base text-gray-300 leading-relaxed">
+                {action.description}
+              </p>
+            </motion.button>
+          ))}
+        </motion.div>
+      </section>
 
-        try {
-            setLoading(true)
-            const res = await axiosInstance.post("/api/inputIncomeDetail", form)
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Data income berhasil disimpan!",
-                    severity: "success",
-                })
-                setForm({ name_income: "", amount_income: "", category_id: "", date_income: "" })
-            }
-        } catch (err) {
-            console.error(err)
-            setAlert({ open: true, message: "Gagal menyimpan data!", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
-    }
+      {/* DIALOG */}
+      <Dialog
+        open={openDialog !== null}
+        onClose={() => setOpenDialog(null)}
+        maxWidth="xl"
+        fullWidth
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            background: "rgba(15,20,26,0.65)",
+            backdropFilter: "blur(14px)",
+            borderRadius: "26px",
+            border: "1px solid rgba(255,215,0,0.25)",
+            boxShadow:
+              "0 0 60px rgba(255,215,0,0.06), 0 0 90px rgba(0,0,0,0.7)",
+            height: "90vh",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <div className="flex flex-col w-full h-full overflow-hidden">
+          {/* HEADER */}
+          <div
+            className="
+            flex items-center justify-between px-8 pt-6 pb-4 
+            border-b border-[#FFD700]/20 
+            bg-gradient-to-r from-transparent via-[#FFD700]/10 to-transparent
+            backdrop-blur-sm flex-shrink-0
+           "
+          >
+            <h2 className="text-2xl font-semibold text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]">
+              {currentAction?.title}
+            </h2>
 
-    // === SUBMIT CATEGORY ===
-    const handleSubmitCategory = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!categoryName.trim()) {
-            setAlert({ open: true, message: "Nama kategori tidak boleh kosong!", severity: "error" })
-            return
-        }
-        try {
-            setLoading(true)
-            const res = await axiosInstance.post("/api/inputCategoryIncome", {
-                name_category: categoryName,
-            })
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: "✅ Kategori baru berhasil disimpan!",
-                    severity: "success",
-                })
-                setCategoryName("")
-                getCategories()
-            }
-        } catch (err) {
-            console.error(err)
-            setAlert({ open: true, message: "Gagal menyimpan kategori!", severity: "error" })
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    // === HANDLE EXCEL UPLOAD ===
-    const handleExcelSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        setFile(file)
-
-        const reader = new FileReader()
-        reader.onload = (event: any) => {
-            const workbook = XLSX.read(event.target.result, { type: "binary" })
-            const sheet = workbook.SheetNames[0]
-            const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet])
-            setPreviewData(data)
-        }
-        reader.readAsBinaryString(file)
-    }
-
-    const handleUploadExcel = async () => {
-        if (!file) {
-            setAlert({ open: true, message: "Pilih file Excel terlebih dahulu!", severity: "error" })
-            return
-        }
-
-        try {
-            setUploading(true) // ✅ mulai overlay loading
-            const formData = new FormData()
-            formData.append("file", file)
-
-            const res = await axiosInstance.post("/api/uploadIncomeExcel", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            })
-
-            if (res.status === 200) {
-                setAlert({
-                    open: true,
-                    message: `✅ ${res.data.inserted} baris berhasil diimport!`,
-                    severity: "success",
-                })
-                // reset state agar input file bisa dipakai ulang
-                setFile(null)
-                setPreviewData([])
-
-                // ⏱️ beri jeda kecil untuk UX lalu refresh full halaman
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1200)
-            }
-        } catch (err) {
-            console.error(err)
-            setAlert({
-                open: true,
-                message: "❌ Gagal upload file! Pastikan format Excel sesuai.",
-                severity: "error",
-            })
-        } finally {
-            // biarkan overlay tertutup oleh reload; jika gagal tetap matikan overlay
-            setUploading(false)
-        }
-    }
-
-    // === DOWNLOAD TEMPLATE EXCEL (SYNC DARI CATEGORY DB) ===
-    const handleDownloadTemplate = () => {
-        const exampleRows = categories.length
-            ? categories.map((cat) => ({
-                name_income: `Contoh ${cat.name_category}`,
-                amount_income: 100000,
-                category_id: cat.id,
-                date_income: "2025-01-01",
-                kategori: cat.name_category,
-            }))
-            : [
-                {
-                    name_income: "Klaim BPJS Januari",
-                    amount_income: 72000000,
-                    category_id: 1,
-                    date_income: "2025-01-01",
-                    kategori: "Klaim BPJS",
+            <IconButton
+              onClick={() => setOpenDialog(null)}
+              sx={{
+                color: "#FFD700",
+                "&:hover": {
+                  backgroundColor: "rgba(255,215,0,0.15)",
+                  boxShadow: "0 0 12px rgba(255,215,0,0.4)",
                 },
-            ]
-
-        const worksheet = XLSX.utils.json_to_sheet(exampleRows)
-        const workbook = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Template Income")
-        XLSX.writeFile(workbook, "template_income.xlsx")
-
-        setAlert({
-            open: true,
-            message: "📥 Template Excel berhasil diunduh (sinkron kategori DB)!",
-            severity: "success",
-        })
-    }
-
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-[#E8EBEF] via-[#F9FAFB] to-[#E8EBEF] px-6 pt-32 pb-20">
-            {/* HEADER */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="text-center mb-14"
+              }}
             >
-                <div className="flex justify-center items-center gap-6">
-                    <MonetizationOn sx={{ fontSize: 70, color: "#FFD700" }} />
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        INPUT INCOME
-                    </h1>
-                </div>
-                <div>
-                    <h1 className="text-6xl font-serif font-extrabold text-[#2C3E50] tracking-wide">
-                        RS BHAYANGKARA M HASAN PALEMBANG
-                    </h1>
-                </div>
-                <div className="w-36 h-[4px] bg-gradient-to-r from-[#2C3E50] to-[#FFD700] mx-auto mt-5 rounded-full"></div>
-            </motion.div>
+              <CloseIcon sx={{ fontSize: 35 }} />
+            </IconButton>
+          </div>
 
-            {/* === TABS === */}
-            <Box
-                sx={{
-                    width: "100%",
-                    maxWidth: "1100px",
-                    mb: 6,
-                    bgcolor: "rgba(255,255,255,0.95)",
-                    borderRadius: "24px",
-                    boxShadow: "0 15px 40px rgba(0,0,0,0.12)",
-                }}
-            >
-                <Tabs
-                    value={tab}
-                    onChange={(_, v) => setTab(v)}
-                    centered
-                    TabIndicatorProps={{
-                        style: {
-                            background: "linear-gradient(90deg,#2C3E50 0%,#FFD700 100%)",
-                            height: "5px",
-                            borderRadius: "5px",
-                        },
-                    }}
-                >
-                    <Tab icon={<MonetizationOn />} label="Input Income" sx={{ fontSize: "1.3rem", fontWeight: "bold" }} />
-                    <Tab icon={<Category />} label="Input Kategori" sx={{ fontSize: "1.3rem", fontWeight: "bold" }} />
-                    <Tab icon={<UploadFile />} label="Import Excel" sx={{ fontSize: "1.3rem", fontWeight: "bold" }} />
-                </Tabs>
-            </Box>
+          {/* BODY */}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="max-w-5xl mx-auto">
+              
+              {openDialog === "income" && (
+                <TabIncome
+                  {...income}
+                  categories={category?.categories || []}
+                />
+              )}
 
-            {/* === TAB 1: INPUT INCOME === */}
-            {tab === 0 && (
-                <motion.div
-                    key="income"
-                    initial={{ opacity: 0, y: 40 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16"
-                >
-                    <form onSubmit={handleSubmitIncome} className="flex flex-col gap-8">
-                        <TextField label="Nama Pemasukan" name="name_income" fullWidth value={form.name_income} onChange={handleChange} required />
-                        <TextField
-                            label="Jumlah (Rp)"
-                            name="amount_income"
-                            fullWidth
-                            value={
-                                form.amount_income
-                                    ? "Rp " +
-                                    new Intl.NumberFormat("id-ID", {
-                                        minimumFractionDigits: 0,
-                                        maximumFractionDigits: 0,
-                                    }).format(Number(form.amount_income))
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                // Hilangkan semua selain angka
-                                const raw = e.target.value.replace(/[^0-9]/g, "")
-                                setForm({ ...form, amount_income: raw })
-                            }}
-                            InputProps={{
-                                inputMode: "numeric",
-                                sx: { fontSize: "1.2rem", height: 70, pl: 1 },
-                            }}
-                            InputLabelProps={{
-                                sx: { fontSize: "1.1rem" },
-                            }}
-                            required
-                        />
+              {openDialog === "category" && (
+                <TabCategory
+                  {...category}
+                  categories={category?.categories || []}
+                />
+              )}
 
-                        <TextField select label="Kategori" name="category_id" fullWidth value={form.category_id} onChange={handleChange} required>
-                            {categories.length > 0 ? (
-                                categories.map((cat) => (
-                                    <MenuItem key={cat.id} value={cat.id}>
-                                        {cat.name_category}
-                                    </MenuItem>
-                                ))
-                            ) : (
-                                <MenuItem disabled>Memuat kategori...</MenuItem>
-                            )}
-                        </TextField>
-                        <TextField label="Tanggal" name="date_income" type="date" fullWidth value={form.date_income} onChange={handleChange} InputLabelProps={{ shrink: true }} required />
-                        <Button type="submit" variant="contained" disabled={loading} sx={{ mt: 4, py: 2, fontSize: "1.2rem" }}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Data Income"}
-                        </Button>
-                    </form>
-                </motion.div>
-            )}
+              {openDialog === "excel" && (
+                <TabExcel
+                  {...excel}
+                  previewData={excel?.previewData || []}
+                />
+              )}
 
-            {/* === TAB 2: INPUT KATEGORI === */}
-            {tab === 1 && (
-                <motion.div key="category" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-3xl p-16">
-                    <form onSubmit={handleSubmitCategory} className="flex flex-col gap-8 mb-8">
-                        <TextField label="Nama Kategori Baru" fullWidth value={categoryName} onChange={(e) => setCategoryName(e.target.value)} required />
-                        <Button type="submit" variant="contained" disabled={loading}>
-                            {loading ? <CircularProgress size={28} sx={{ color: "#FFD700" }} /> : "Simpan Kategori"}
-                        </Button>
-                    </form>
-                    <Divider sx={{ mb: 3 }} />
-                    <div className="flex justify-between items-center mb-3">
-                        <h2 className="text-3xl font-serif font-bold text-[#2C3E50] flex items-center gap-2">
-                            <InfoOutlined sx={{ fontSize: 40 }} /> Daftar Kategori Saat Ini
-                        </h2>
-                        <Button onClick={getCategories} startIcon={<Refresh />} variant="outlined">Refresh</Button>
-                    </div>
-                    <ul className="list-disc ml-6 text-xl text-[#3b4650] leading-relaxed">
-                        {categories.length > 0 ? categories.map((cat) => <li key={cat.id}><b>{cat.name_category}</b></li>) : <p>Belum ada kategori.</p>}
-                    </ul>
-                </motion.div>
-            )}
-
-            {/* === TAB 3: IMPORT EXCEL === */}
-            {tab === 2 && (
-                <motion.div key="excel" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="bg-white/95 shadow-[0_10px_60px_rgba(0,0,0,0.15)] rounded-[35px] w-full max-w-5xl p-16 text-center">
-                    <CloudUpload sx={{ fontSize: 80, color: "#2C3E50" }} />
-                    <h2 className="text-4xl font-serif font-bold text-[#2C3E50] mt-4 mb-6">Upload File Excel</h2>
-
-                    <div className="flex justify-center gap-4 mb-8">
-                        <Button component="label" variant="outlined" startIcon={<InsertDriveFile />} sx={{ fontWeight: "bold", px: 4 }}>
-                            Pilih File Excel
-                            <input hidden type="file" accept=".xlsx,.xls" onChange={handleExcelSelect} />
-                        </Button>
-                        <Button onClick={handleDownloadTemplate} variant="outlined" startIcon={<Download />} sx={{ fontWeight: "bold", px: 4 }}>
-                            Download Template
-                        </Button>
-                    </div>
-
-                    {file && <p className="text-lg text-[#2C3E50] mb-6">📂 {file.name}</p>}
-
-                    {previewData.length > 0 && (
-                        <Paper sx={{ maxHeight: 400, overflow: "auto", mb: 4 }}>
-                            <Table stickyHeader>
-                                <TableHead>
-                                    <TableRow>
-                                        {Object.keys(previewData[0]).map((key) => (
-                                            <TableCell key={key} sx={{ fontWeight: "bold", background: "#2C3E50", color: "white" }}>{key}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {previewData.map((row, i) => (
-                                        <TableRow key={i}>
-                                            {Object.values(row).map((val, j) => (
-                                                <TableCell key={j}>{String(val)}</TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Paper>
-                    )}
-
-                    <Button onClick={handleUploadExcel} variant="contained" disabled={uploading || previewData.length === 0}>
-                        {uploading ? <CircularProgress size={30} sx={{ color: "#FFD700" }} /> : "Import Data Excel"}
-                    </Button>
-                </motion.div>
-            )}
-
-            {/* === OVERLAY LOADING (FULL SCREEN, SEMI-TRANSPARAN + BLUR) === */}
-            {uploading && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="flex flex-col items-center gap-4 rounded-2xl px-8 py-6 bg-white/60 shadow-xl border border-white/40">
-                        <CircularProgress size={44} />
-                        <p className="text-lg font-medium text-[#2C3E50]">Mengimpor data Excel…</p>
-                        <p className="text-sm text-[#2C3E50]/70">Tunggu sebentar ya (±1 detik)…</p>
-                    </div>
-                </div>
-            )}
-
-            {/* ALERT */}
-            <Snackbar open={alert.open} autoHideDuration={3000} onClose={() => setAlert({ ...alert, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-                <Alert severity={alert.severity} variant="filled" sx={{ fontSize: "1.1rem", borderRadius: "10px" }}>
-                    {alert.message}
-                </Alert>
-            </Snackbar>
+            </div>
+          </div>
         </div>
-    )
+      </Dialog>
+
+      {/* ALERT */}
+      {activeAlert && (
+        <Snackbar
+          open={activeAlert.open}
+          autoHideDuration={3000}
+          onClose={() =>
+            activeAlert.setAlert((prev: any) => ({ ...prev, open: false }))
+          }
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          sx={{
+            zIndex: 9999,
+            "& .MuiAlert-root": {
+              backgroundColor:
+                activeAlert.severity === "success"
+                  ? "rgba(46, 204, 113, 0.95)"
+                  : "rgba(231, 76, 60, 0.95)",
+              color: "#fff",
+              fontSize: "1.1rem",
+              padding: "16px 24px",
+              borderRadius: "14px",
+              boxShadow: "0 0 30px rgba(0,0,0,0.35)",
+            },
+          }}
+        >
+          <Alert severity={activeAlert.severity} variant="filled">
+            {activeAlert.message}
+          </Alert>
+        </Snackbar>
+      )}
+
+      {/* LOADING OVERLAY */}
+      {excel.uploading && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-4 px-8 py-6 bg-[#12171d]/80 rounded-2xl border border-[#FFD700]/30 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+            <CircularProgress size={44} sx={{ color: "#FFD700" }} />
+            <p className="text-lg text-[#FFD700]">Mengimpor data Excel…</p>
+          </div>
+        </div>
+      )}
+    </main>
+  )
 }
