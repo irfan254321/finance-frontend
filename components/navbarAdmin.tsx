@@ -1,54 +1,61 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Avatar, IconButton, Menu, MenuItem, Divider } from "@mui/material"
-import { Menu as MenuIcon, Close as CloseIcon, ExpandMore, ExpandLess, ChevronRight } from "@mui/icons-material"
-import { motion, AnimatePresence } from "framer-motion"
-import { useAuth } from "@/context/AuthContext"
-import { useRouter } from "next/navigation"
-import axiosInstance from "@/lib/axiosInstance"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Avatar, IconButton, Menu, MenuItem, Divider } from "@mui/material";
+import {
+  Menu as MenuIcon,
+  Close as CloseIcon,
+  ExpandMore,
+  ExpandLess,
+  ChevronRight,
+} from "@mui/icons-material";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import axiosInstance from "@/lib/axiosInstance";
 
 export default function NavbarAdmin() {
-  const router = useRouter()
-  const { user, logout } = useAuth()
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [openMenu, setOpenMenu] = useState<string | null>(null)
-  const [openSub, setOpenSub] = useState<string | null>(null)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openSub, setOpenSub] = useState<string | null>(null);
 
   // State untuk tahun
-  const [years, setYears] = useState<number[]>([])
+  const [years, setYears] = useState<number[]>([]);
 
   useEffect(() => {
-    axiosInstance.get("/api/year")
+    axiosInstance
+      .get("/api/year")
       .then((res) => {
         // Asumsi res.data = [{ id: 1, year: 2024 }, ...]
-        const list = res.data.map((item: any) => item.year)
-        setYears(list)
+        const list = res.data.map((item: any) => item.year);
+        setYears(list);
       })
-      .catch((err) => console.error("Gagal ambil tahun:", err))
-  }, [])
+      .catch((err) => console.error("Gagal ambil tahun:", err));
+  }, []);
 
-  const toggleMobile = () => setMobileOpen(!mobileOpen)
-  const toggleMenu = (menu: string) => setOpenMenu(openMenu === menu ? null : menu)
-  const toggleSub = (key: string) => setOpenSub(openSub === key ? null : key)
+  const toggleMobile = () => setMobileOpen(!mobileOpen);
+  const toggleMenu = (menu: string) =>
+    setOpenMenu(openMenu === menu ? null : menu);
+  const toggleSub = (key: string) => setOpenSub(openSub === key ? null : key);
 
-  const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget)
-  const handleMenuClose = () => setAnchorEl(null)
+  const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>) =>
+    setAnchorEl(e.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
   const navButtons = [
-    { label: "Dashboard", route: "/dashboard" },
     { label: "Register", route: "/dashboard/admin/register" },
-    { label: "Contents", route: "/dashboard/admin/slide" },
-  ]
+  ];
 
   const financeItems = [
     { label: "💰 Income", route: "/dashboard/income" },
     { label: "💸 Spending", route: "/dashboard/spending" },
     { label: "⚖️ Mixture", route: "/dashboard/mixture" },
-  ]
+  ];
 
   const manageItems = [
     {
@@ -67,36 +74,51 @@ export default function NavbarAdmin() {
     },
     {
       label: "📅 Year",
+      routes: [{ name: "➕ Input Year", path: "/dashboard/admin/year" }],
+    },
+    {
+      label: "👤 User",
       routes: [
-        { name: "➕ Input Year", path: "/dashboard/admin/year" },
+        { name: "🛠️ Edit User", path: "/dashboard/profile" },
+        { name: "🚪 Logout", path: logout },
       ],
     },
-  ]
+  ];
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-[9999] text-[#EBD77A] font-serif bg-gradient-to-br from-[#1a2732]/97 via-[#2C3E50]/95 to-[#1a2732]/97 backdrop-blur-lg border-b border-[#EBD77A]/15 shadow-[0_2px_25px_rgba(0,0,0,0.4)]">
+    <nav className="sticky top-0  w-full z-[9999] min-h-28 text-[#EBD77A] font-serif bg-gradient-to-br from-[#1a2732]/97 via-[#2C3E50]/95 to-[#1a2732]/97 backdrop-blur-lg border-b border-[#EBD77A]/15 shadow-[0_2px_25px_rgba(0,0,0,0.4)]">
       <div className="flex justify-between items-center px-6 md:px-16 h-20">
-
         {/* LOGO */}
-        <Link
-          href="/dashboard"
-          className="relative text-xl font-bold cursor-pointer select-none hover:text-[#FFD970] transition-all duration-200 tracking-wide group"
-        >
-          RS BHAYANGKARA
-          <span className="absolute left-0 -bottom-1 h-[2px] w-0 bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
-        </Link>
+        <div className="flex flex-row items-center w-5/12">
+          <div className="mt-9">
+            <Link href="/dashboard">
+              <img
+                src="/logo-rs.png"
+                alt="Logo RS"
+                className="drop-shadow-[0_0_12px_rgba(255,215,0,0.4)]
+                 cursor-pointer 
+                 w-12 h-12 md:w-20 md:h-20"
+              />
+            </Link>
+          </div>
+          <div className="ml-5 text-2xl font-bold mt-9">
+            <h1 className="hidden md:block text-2xl font-bold leading-tight text-[#EBD77A]">
+              RUMAH SAKIT BHAYANGKARA M HASAN PALEMBANG
+            </h1>
+          </div>
+        </div>
 
         {/* DESKTOP MENU */}
-        <div className="hidden md:flex items-center space-x-10 text-[15px] relative">
-
+        <div className="hidden md:flex items-center space-x-36 text-2xl relative mt-9 mr-28">
           {/* FINANCE */}
           <div className="relative">
             <button
               onClick={() => toggleMenu("finance")}
-              className={`relative group px-2 font-semibold cursor-pointer select-none transition-all ease-out ${openMenu === "finance"
-                ? "text-[#FFD970] drop-shadow-[0_0_6px_rgba(255,217,112,0.4)]"
-                : "text-[#EBD77A]"
-                }`}
+              className={`relative group px-2 font-semibold cursor-pointer select-none transition-all ease-out ${
+                openMenu === "finance"
+                  ? "text-[#FFD970] drop-shadow-[0_0_6px_rgba(255,217,112,0.4)]"
+                  : "text-[#EBD77A]"
+              }`}
             >
               Finance
             </button>
@@ -118,8 +140,11 @@ export default function NavbarAdmin() {
                       >
                         {item.label}
                         <ChevronRight
-                          className={`transition-transform ${openSub === item.label ? "rotate-90 text-[#FFD970]" : "text-[#EBD77A]/70"
-                            }`}
+                          className={`transition-transform ${
+                            openSub === item.label
+                              ? "rotate-90 text-[#FFD970]"
+                              : "text-[#EBD77A]/70"
+                          }`}
                           fontSize="small"
                         />
                       </button>
@@ -138,10 +163,10 @@ export default function NavbarAdmin() {
                                 key={year}
                                 href={`${item.route}/${year}`}
                                 onClick={() => {
-                                  setOpenMenu(null)
-                                  setOpenSub(null)
+                                  setOpenMenu(null);
+                                  setOpenSub(null);
                                 }}
-                                className="block w-full text-left px-3 py-1.5 text-sm text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
+                                className="block w-full text-left px-3 py-1.5 text-xl text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
                               >
                                 📆 {year}
                               </Link>
@@ -149,7 +174,6 @@ export default function NavbarAdmin() {
                           </motion.div>
                         )}
                       </AnimatePresence>
-
                     </div>
                   ))}
                 </motion.div>
@@ -161,10 +185,11 @@ export default function NavbarAdmin() {
           <div className="relative">
             <button
               onClick={() => toggleMenu("manage")}
-              className={`relative group px-2 font-semibold ${openMenu === "manage"
-                ? "text-[#FFD970] drop-shadow-[0_0_6px_rgba(255,217,112,0.4)]"
-                : "text-[#EBD77A]"
-                }`}
+              className={`relative group px-2 font-semibold cursor-pointer ${
+                openMenu === "manage"
+                  ? "text-[#FFD970] drop-shadow-[0_0_6px_rgba(255,217,112,0.4)]"
+                  : "text-[#EBD77A]"
+              }`}
             >
               Manage
             </button>
@@ -186,8 +211,11 @@ export default function NavbarAdmin() {
                       >
                         {section.label}
                         <ChevronRight
-                          className={`transition-transform ${openSub === section.label ? "rotate-90 text-[#FFD970]" : "text-[#EBD77A]/70"
-                            }`}
+                          className={`transition-transform ${
+                            openSub === section.label
+                              ? "rotate-90 text-[#FFD970]"
+                              : "text-[#EBD77A]/70"
+                          }`}
                         />
                       </button>
 
@@ -198,21 +226,35 @@ export default function NavbarAdmin() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 10 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute top-0 left-full ml-3 min-w-[160px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-2 space-y-1"
+                            className="absolute top-0 left-full ml-3 min-w-[180px] bg-gradient-to-br from-[#1a2732]/98 via-[#2C3E50]/96 to-[#1a2732]/98 border border-[#EBD77A]/25 rounded-xl p-2 space-y-1"
                           >
-                            {section.routes.map((r) => (
-                              <Link
-                                key={r.path}
-                                href={r.path}
-                                onClick={() => {
-                                  setOpenMenu(null)
-                                  setOpenSub(null)
-                                }}
-                                className="block w-full px-3 py-1.5 text-sm text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
-                              >
-                                {r.name}
-                              </Link>
-                            ))}
+                            {section.routes.map((r) =>
+                              typeof r.path === "string" ? (
+                                <Link
+                                  key={r.name}
+                                  href={r.path}
+                                  onClick={() => {
+                                    setOpenMenu(null);
+                                    setOpenSub(null);
+                                  }}
+                                  className="block w-full px-3 py-1.5 text-xl text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
+                                >
+                                  {r.name}
+                                </Link>
+                              ) : (
+                                <button
+                                  key={r.name}
+                                  onClick={() => {
+                                    r.path(); // ← jalankan fungsi logout()
+                                    setOpenMenu(null);
+                                    setOpenSub(null);
+                                  }}
+                                  className="block w-full text-left px-3 py-1.5 text-xl text-[#F6F1D3] hover:text-[#FFD970] hover:bg-white/10 rounded-md"
+                                >
+                                  {r.name}
+                                </button>
+                              )
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -235,54 +277,6 @@ export default function NavbarAdmin() {
             </Link>
           ))}
         </div>
-
-        {/* USER AVATAR */}
-        {user && (
-          <div className="hidden md:flex items-center gap-4 border border-[#EBD77A]/30 rounded-full px-5 py-2 bg-[#1a2732]/70 shadow-[0_0_25px_rgba(235,215,122,0.15)] select-none">
-            <div className="flex flex-col items-end">
-              <span className="text-[#FFD970] font-semibold">{user.name_users}</span>
-              <span className="text-[#F4E1C1] text-[13px]">{user.role.toUpperCase()}</span>
-            </div>
-
-            <IconButton onClick={handleMenuOpen} className="!p-0 cursor-pointer">
-              <Avatar
-                alt={user.name_users}
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name_users}`}
-                sx={{
-                  width: 44,
-                  height: 44,
-                  border: "2px solid #EBD77A",
-                  backgroundColor: "#2C3E50",
-                }}
-              />
-            </IconButton>
-
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              PaperProps={{
-                sx: {
-                  borderRadius: "16px",
-                  background: "rgba(25,30,40,0.95)",
-                  border: "1px solid rgba(235,215,122,0.3)",
-                  color: "white",
-                },
-              }}
-            >
-              <MenuItem onClick={() => router.push("/dashboard/profile")}>📁 Profile</MenuItem>
-              <Divider />
-              <MenuItem onClick={logout}>🚪 Logout</MenuItem>
-            </Menu>
-          </div>
-        )}
-
-        {/* MOBILE BURGER */}
-        <div className="md:hidden">
-          <IconButton onClick={toggleMobile} className="text-[#EBD77A]">
-            {mobileOpen ? <CloseIcon /> : <MenuIcon />}
-          </IconButton>
-        </div>
       </div>
 
       {/* MOBILE PANEL */}
@@ -297,22 +291,29 @@ export default function NavbarAdmin() {
           >
             {/* === MOBILE ITEMS === */}
             {[
-              { title: "Dashboard", action: () => router.push("/dashboard") },
               { title: "Finance", subKey: "finance" },
               { title: "Manage", subKey: "manage" },
-              { title: "Register", action: () => router.push("/dashboard/admin/register") },
-              { title: "Contents", action: () => router.push("/dashboard/admin/slide") },
+              {
+                title: "Register",
+                action: () => router.push("/dashboard/admin/register"),
+              },
             ].map((item) => (
               <div key={item.title}>
                 <button
                   onClick={() =>
-                    item.subKey ? toggleMenu(item.subKey) : item.action && item.action()
+                    item.subKey
+                      ? toggleMenu(item.subKey)
+                      : item.action && item.action()
                   }
                   className="flex justify-between items-center w-full text-left text-lg font-semibold hover:text-[#FFD970]"
                 >
                   {item.title}
                   {item.subKey &&
-                    (openMenu === item.subKey ? <ExpandLess /> : <ExpandMore />)}
+                    (openMenu === item.subKey ? (
+                      <ExpandLess />
+                    ) : (
+                      <ExpandMore />
+                    ))}
                 </button>
 
                 {/* === Submenus Mobile === */}
@@ -326,14 +327,16 @@ export default function NavbarAdmin() {
                     >
                       {financeItems.map((f) => (
                         <div key={f.label}>
-                          <span className="font-semibold text-[#FFD970]">{f.label}</span>
+                          <span className="font-semibold text-[#FFD970]">
+                            {f.label}
+                          </span>
                           <div className="ml-4 mt-1 space-y-1">
                             {years.map((y) => (
                               <button
                                 key={y}
                                 onClick={() => {
-                                  router.push(`${f.route}/${y}`)
-                                  setMobileOpen(false)
+                                  router.push(`${f.route}/${y}`);
+                                  setMobileOpen(false);
                                 }}
                                 className="block text-left hover:text-[#FFD970] text-[#F4E1C1]"
                               >
@@ -355,14 +358,16 @@ export default function NavbarAdmin() {
                     >
                       {manageItems.map((m) => (
                         <div key={m.label}>
-                          <span className="font-semibold text-[#FFD970]">{m.label}</span>
+                          <span className="font-semibold text-[#FFD970]">
+                            {m.label}
+                          </span>
                           <div className="ml-4 mt-1 space-y-1">
                             {m.routes.map((r) => (
                               <button
                                 key={r.path}
                                 onClick={() => {
-                                  router.push(r.path)
-                                  setMobileOpen(false)
+                                  router.push(r.path);
+                                  setMobileOpen(false);
                                 }}
                                 className="block text-left hover:text-[#FFD970] text-[#F4E1C1]"
                               >
@@ -399,6 +404,6 @@ export default function NavbarAdmin() {
           </motion.div>
         )}
       </AnimatePresence>
-    </nav >
-  )
+    </nav>
+  );
 }
