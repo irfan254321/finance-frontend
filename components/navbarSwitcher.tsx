@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/context/AuthContext"
-import NavbarLogin from "@/components/navbarLogin"
+import NavbarLogin from "@/components/navbarUser"
 import NavbarAdmin from "@/components/navbarAdmin"
 
 export default function NavbarSwitcher() {

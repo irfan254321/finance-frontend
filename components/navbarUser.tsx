@@ -1,48 +1,48 @@
-// navbarAdmin.tsx
+// NavbarUser.tsx (atau NavbarLogin.tsx sesuai nama filemu)
 "use client";
 
-import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
-// Imports Refactored Components
+// REUSE: Komponen yang sudah dibuat sebelumnya
 import NavLogo from "@/components/navbar/NavLogo";
 import NavMobile from "@/components/navbar/NavMobile";
 import {
   DesktopDropdown,
   DropdownSubItem,
   MenuLink,
-  MenuButton,
+  MenuButton, // MenuButton yang sudah di-update di atas
 } from "@/components/navbar/NavDesktop";
 import { useNavData, useNavState } from "@/components/navbar/hooks";
-import { financeItems, manageItems, staticNavButtons } from "@/components/navbar/config";
-import { ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from "react";
-import { UrlObject } from "url";
+import { financeItems, manageItems } from "@/components/navbar/config";
 
-export default function NavbarAdmin() {
+export default function NavbarUser() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLogoutLoading } = useAuth(); // Ambil isLogoutLoading
 
-  // Custom hooks handling logic & data
+  // REUSE: Logic State & Data Fetching
   const { years } = useNavData();
   const {
     mobileOpen,
     openMenu,
     openSub,
-    toggleMobile,
+    // toggleMobile, // Jika ada tombol hamburger di luar snippet
     toggleMenu,
     toggleSub,
     closeAll,
   } = useNavState();
 
-  // Siapkan data manage agar bisa menerima fungsi logout di Desktop
-  const finalManageItems = [
+  // Construct Data Menu Manage Khusus User (hanya Logout, tanpa Edit User)
+  const userManageItems = [
     ...manageItems,
     {
       label: "👤 User",
       routes: [
-        { name: "🛠️ Edit User", path: "/dashboard/profile" },
-        { name: "🚪 Logout", path: logout }, // Function ref
+        { 
+          name: "🚪 Logout", 
+          path: logout, // function reference
+          isLogout: true // marker logic
+        }, 
       ],
     },
   ];
@@ -50,14 +50,14 @@ export default function NavbarAdmin() {
   return (
     <nav className="sticky top-0 w-full z-[9999] min-h-28 text-[#EBD77A] font-serif bg-gradient-to-br from-[#1a2732]/97 via-[#2C3E50]/95 to-[#1a2732]/97 backdrop-blur-lg border-b border-[#EBD77A]/15 shadow-[0_2px_25px_rgba(0,0,0,0.4)]">
       <div className="flex justify-between items-center px-6 md:px-16 h-20">
-
-        {/* 1. LOGO */}
+        
+        {/* 1. LOGO (REUSE) */}
         <NavLogo />
 
         {/* 2. DESKTOP MENU */}
-        <div className="hidden md:flex items-center space-x-36 text-2xl relative mt-9 mr-28">
-
-          {/* Dropdown: FINANCE */}
+        <div className="hidden md:flex items-center space-x-36 text-2xl relative mt-9 mr-72">
+          
+          {/* Dropdown: FINANCE (Sama persis dengan Admin) */}
           <DesktopDropdown
             label="Finance"
             isOpen={openMenu === "finance"}
@@ -83,20 +83,20 @@ export default function NavbarAdmin() {
             ))}
           </DesktopDropdown>
 
-          {/* Dropdown: MANAGE */}
+          {/* Dropdown: MANAGE (Khusus User: Logout ada Loadingnya) */}
           <DesktopDropdown
             label="Manage"
             isOpen={openMenu === "manage"}
             onToggle={() => toggleMenu("manage")}
           >
-            {finalManageItems.map((section) => (
+            {userManageItems.map((section) => (
               <DropdownSubItem
                 key={section.label}
                 label={section.label}
                 isOpen={openSub === section.label}
                 onToggle={() => toggleSub(section.label)}
               >
-                {section.routes.map((r) =>
+                {section.routes.map((r: any) =>
                   typeof r.path === "string" ? (
                     <MenuLink key={r.name} href={r.path} onClick={closeAll}>
                       {r.name}
@@ -108,6 +108,9 @@ export default function NavbarAdmin() {
                         r.path(); // Jalankan logout
                         closeAll();
                       }}
+                      // Inject props loading khusus Logout
+                      disabled={isLogoutLoading}
+                      isLoading={r.isLogout ? isLogoutLoading : false}
                     >
                       {r.name}
                     </MenuButton>
@@ -116,34 +119,19 @@ export default function NavbarAdmin() {
               </DropdownSubItem>
             ))}
           </DesktopDropdown>
-
-          {/* Static Buttons (Register) */}
-          {staticNavButtons.map((btn) => (
-            <Link
-              // Tambahkan 'as string'
-              key={btn.label as string}
-              href={btn.route}
-              className="relative group font-semibold text-[#EBD77A] hover:text-[#FFD970]"
-            >
-              {btn.label}
-              <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-[#FFD970] rounded-full transition-all duration-300 ease-out group-hover:w-full"></span>
-            </Link>
-          ))}
         </div>
-
-        {/* Toggle Mobile Button (Hidden logic handled by UI caller, usually hamburger icon but wasn't in original snippet explicitly outside mobile panel context, assuming caller exists or logic was implicit in full file. Original code uses `mobileOpen` but no visible button to trigger it inside nav? Assuming it's triggered externally or via `toggleMobile` passed down if icon existed) */}
-        {/* Note: Kode asli tidak menampilkan tombol Hamburger di return, tapi ada fungsi toggleMobile. Saya pertahankan struktur aslinya. Jika ada tombol hamburger yang terlewat di snippet, tambahkan di sini menggunakan onClick={toggleMobile} */}
-
       </div>
 
-      {/* 3. MOBILE PANEL */}
+      {/* 3. MOBILE PANEL (REUSE) */}
+      {/* Kita reuse NavMobile. Walaupun di snippet asli User Navbar tidak ada loading indicator di mobile,
+          kita tetap passing fungsi logout. NavMobile yang kita buat sebelumnya sudah cukup generic. */}
       <NavMobile
         isOpen={mobileOpen}
         openMenu={openMenu}
         toggleMenu={toggleMenu}
         onClose={closeAll}
         financeItems={financeItems}
-        manageItems={finalManageItems}
+        manageItems={userManageItems}
         years={years}
         user={user}
         logout={logout}
