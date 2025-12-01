@@ -70,11 +70,11 @@ export default function Footer({
               <Link href={brand.href ?? "/"} className="inline-flex items-center gap-3">
                 {brand.logoSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  (<img
                     src={brand.logoSrc}
                     alt={brand.name}
                     className="h-10 w-10 rounded-xl ring-1 ring-white/20 object-cover"
-                  />
+                  />)
                 ) : (
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFD700]/10 ring-1 ring-[#FFD700]/30">
                     <span className="font-semibold text-[#FFD700]">RS</span>
@@ -174,5 +174,5 @@ export default function Footer({
         </div>
       </div>
     </footer>
-  )
+  );
 }

@@ -1,60 +1,99 @@
-"use client"
+"use client";
 
-import { useState, useEffect, forwardRef } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect, forwardRef } from "react";
+import { motion } from "framer-motion";
 import {
   Snackbar,
   Alert,
   CircularProgress,
   Dialog,
   IconButton,
-} from "@mui/material"
-import Slide from "@mui/material/Slide"
-import type { SlideProps } from "@mui/material/Slide"
+} from "@mui/material";
+import Slide from "@mui/material/Slide";
+import type { SlideProps } from "@mui/material/Slide";
 import {
   AddCircleOutline,
   Category as CategoryIcon,
   TableView,
   Close as CloseIcon,
-} from "@mui/icons-material"
+} from "@mui/icons-material";
 
 // HOOKS
-import { useIncomeForm } from "@/hooks/incomeInput/useIncomeForm"
-import { useCategoryIncome } from "@/hooks/incomeInput/useCategoryIncome"
-import { useIncomeExcel } from "@/hooks/incomeInput/useIncomeExcel"
+import CategoryManager from "@/components/income/category-input/CategoryManager";
 
 // TABS
-import TabIncome from "@/components/tabIncome/TabIncome"
-import TabCategory from "@/components/tabIncome/TabCategory"
-import TabExcel from "@/components/tabIncome/TabExcel"
-
+import ExcelManager from "@/components/income/excel-income/ExcelManager";
+import IncomeManager from "@/components/income/inputedit-income/IncomeManager";
 
 // ================= Transition Slide =================
 const Transition = forwardRef(function Transition(
   props: SlideProps,
   ref: React.Ref<unknown>
 ) {
-  return <Slide direction="up" ref={ref} {...props} />
-})
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
-type DialogKey = "income" | "category" | "excel" | null
+type DialogKey = "income" | "category" | "excel" | null;
 
 export default function InputIncomePage() {
-  const income = useIncomeForm()
-  const category = useCategoryIncome()
-  const excel = useIncomeExcel(category?.categories || [])
+  // Refactor: Gunakan local state untuk alert income
+  const [incomeAlert, setIncomeAlert] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "info";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-  const [openDialog, setOpenDialog] = useState<DialogKey>(null)
+  const income = {
+    alert: incomeAlert,
+    setAlert: setIncomeAlert,
+  };
+
+  // Refactor: Gunakan local state untuk alert excel
+  const [excelAlert, setExcelAlert] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "info";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const excel = {
+    alert: excelAlert,
+    setAlert: setExcelAlert,
+  };
+
+  // Refactor: Gunakan local state untuk alert category
+  const [categoryAlert, setCategoryAlert] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "info";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const category = {
+    alert: categoryAlert,
+    setAlert: setCategoryAlert,
+  };
+
+  const [openDialog, setOpenDialog] = useState<DialogKey>(null);
 
   // ALERT unified
-  const activeAlert =
-    income.alert.open
-      ? { ...income.alert, setAlert: income.setAlert }
-      : category.alert.open
-      ? { ...category.alert, setAlert: category.setAlert }
-      : excel.alert.open
-      ? { ...excel.alert, setAlert: excel.setAlert }
-      : null
+  const activeAlert = income.alert.open
+    ? { ...income.alert, setAlert: income.setAlert }
+    : category.alert.open
+    ? { ...category.alert, setAlert: category.setAlert }
+    : excel.alert.open
+    ? { ...excel.alert, setAlert: excel.setAlert }
+    : null;
 
   const actions = [
     {
@@ -75,25 +114,41 @@ export default function InputIncomePage() {
       description: "Import data pemasukan massal.",
       icon: <TableView sx={{ fontSize: 40 }} />,
     },
-  ]
+  ];
 
-  const currentAction = actions.find((a) => a.key === openDialog) || null
+  const currentAction = actions.find((a) => a.key === openDialog) || null;
+
+  // ============================================================
+  // ADAPTER: Sambungkan IncomeManager ke System Alert Halaman Ini
+  // ============================================================
+  const incomeBaseProps = {
+    setLoading: (loading: boolean) => {},
+    showAlert: (msg: string) => {
+      income.setAlert({ open: true, message: msg, severity: "success" });
+    },
+    handleError: (err: any) => {
+      console.error(err);
+      const msg = err.response?.data?.error || "Terjadi kesalahan sistem";
+      income.setAlert({ open: true, message: msg, severity: "error" });
+    },
+    setDeleteDialog: (config: any) => {
+      // No delete dialog for input income
+    },
+  };
 
   // Auto-reset forms ketika dialog ditutup
   useEffect(() => {
     if (openDialog === null) {
-      income.setForm({
-        name_income: "",
-        amount_income: "",
-        category_id: "",
-        date_income: "",
-      })
+      // Reset alert income
+      income.setAlert({ open: false, message: "", severity: "success" });
 
-      category.setCategoryName("")
-      excel.setFile(null)
-      excel.setPreviewData([])
+      // Reset alert category
+      category.setAlert({ open: false, message: "", severity: "success" });
+
+      // Reset alert excel
+      excel.setAlert({ open: false, message: "", severity: "success" });
     }
-  }, [openDialog])
+  }, [openDialog]);
 
   return (
     <main
@@ -223,28 +278,60 @@ export default function InputIncomePage() {
           {/* BODY */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
             <div className="max-w-5xl mx-auto">
-              
               {openDialog === "income" && (
-                <TabIncome
-                  {...income}
-                  categories={category?.categories || []}
-                />
+                <IncomeManager baseProps={incomeBaseProps} />
               )}
 
               {openDialog === "category" && (
-                <TabCategory
-                  {...category}
-                  categories={category?.categories || []}
+                <CategoryManager
+                  baseProps={{
+                    ...incomeBaseProps,
+                    showAlert: (msg: string) => {
+                      category.setAlert({
+                        open: true,
+                        message: msg,
+                        severity: "success",
+                      });
+                    },
+                    handleError: (err: any) => {
+                      console.error(err);
+                      const msg =
+                        err.response?.data?.error || "Terjadi kesalahan sistem";
+                      category.setAlert({
+                        open: true,
+                        message: msg,
+                        severity: "error",
+                      });
+                    },
+                  }}
                 />
               )}
 
               {openDialog === "excel" && (
-                <TabExcel
-                  {...excel}
-                  previewData={excel?.previewData || []}
+                <ExcelManager
+                  baseProps={{
+                    ...incomeBaseProps,
+                    showAlert: (msg: string) => {
+                      excel.setAlert({
+                        open: true,
+                        message: msg,
+                        severity: "success",
+                      });
+                    },
+                    handleError: (err: any) => {
+                      console.error(err);
+                      const msg =
+                        err.response?.data?.error || "Terjadi kesalahan sistem";
+                      excel.setAlert({
+                        open: true,
+                        message: msg,
+                        severity: "error",
+                      });
+                    },
+                  }}
+                  categories={[]}
                 />
               )}
-
             </div>
           </div>
         </div>
@@ -280,15 +367,7 @@ export default function InputIncomePage() {
         </Snackbar>
       )}
 
-      {/* LOADING OVERLAY */}
-      {excel.uploading && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-4 px-8 py-6 bg-[#12171d]/80 rounded-2xl border border-[#FFD700]/30 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
-            <CircularProgress size={44} sx={{ color: "#FFD700" }} />
-            <p className="text-lg text-[#FFD700]">Mengimpor data Excel…</p>
-          </div>
-        </div>
-      )}
+      {/* LOADING OVERLAY - Removed global excel loading, handled in ExcelManager */}
     </main>
-  )
+  );
 }

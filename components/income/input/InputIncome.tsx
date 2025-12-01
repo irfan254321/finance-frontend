@@ -124,5 +124,5 @@ export default function TabIncome({
         </div>
       </TabWrapper>
     </motion.div>
-  )
+  );
 }
