@@ -38,6 +38,7 @@ export default function NavMobile({
   const menuGroups = [
     { title: "Finance", key: "finance", items: financeItems, type: "finance" },
     { title: "Manage", key: "manage", items: manageItems, type: "manage" },
+    
   ];
 
   return (

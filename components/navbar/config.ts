@@ -31,9 +31,9 @@ export const manageItems = [
     label: "📅 Year",
     routes: [{ name: "➕ Input Year", path: "/dashboard/admin/year" }],
   },
-  // Item User/Logout ditangani secara dinamis di komponen karena butuh func logout
 ];
 
 export const staticNavButtons = [
   { label: "Register", route: "/dashboard/admin/register" },
+  { label: "Tutorial", route: "/dashboard/tutorial" },
 ];

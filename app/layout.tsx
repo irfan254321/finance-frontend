@@ -1,14 +1,11 @@
-
-
-import "./globals.css"
-import { ReactNode } from "react"
-import { AuthProvider } from "@/context/AuthContext"
-import NavbarSwitcher from "@/components/navbarSwitcher" // ✅ client component
+import "./globals.css";
+import { ReactNode } from "react";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata = {
   title: "RS Bhayangkara M Hasan Palembang",
   icons: { icon: "/rs-bhayangkara-logo-v2.ico" },
-}
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -24,5 +21,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </AuthProvider>
       </body>
     </html>
-  )
+  );
 }
