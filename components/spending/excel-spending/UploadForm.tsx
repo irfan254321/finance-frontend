@@ -17,6 +17,7 @@ interface UploadFormProps {
   uploading: boolean;
   handleExcelSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleUploadExcel: () => void;
+  handleDownloadTemplate: (type: "spending" | "company" | "unit") => void;
 }
 
 export default function UploadForm({
@@ -27,6 +28,7 @@ export default function UploadForm({
   uploading,
   handleExcelSelect,
   handleUploadExcel,
+  handleDownloadTemplate,
 }: UploadFormProps) {
   return (
     <>
@@ -118,6 +120,36 @@ export default function UploadForm({
               📂 File: <span className="text-[#FFD700]">{fileName}</span>
             </p>
           )}
+        </div>
+      </div>
+
+      {/* DOWNLOAD TEMPLATE SECTION */}
+      <div className="text-center mb-6">
+        <p className="text-gray-400 text-sm mb-4">
+          Belum punya template? Download di bawah ini:
+        </p>
+        <div className="flex justify-center gap-3 flex-wrap">
+          <Button
+            variant="text"
+            sx={{ color: "#FFD700", textTransform: "none" }}
+            onClick={() => handleDownloadTemplate("spending")}
+          >
+            📥 Template Spending
+          </Button>
+          <Button
+            variant="text"
+            sx={{ color: "#FFD700", textTransform: "none" }}
+            onClick={() => handleDownloadTemplate("company")}
+          >
+            📥 Template Company
+          </Button>
+          <Button
+            variant="text"
+            sx={{ color: "#FFD700", textTransform: "none" }}
+            onClick={() => handleDownloadTemplate("unit")}
+          >
+            📥 Template Unit
+          </Button>
         </div>
       </div>
     </>

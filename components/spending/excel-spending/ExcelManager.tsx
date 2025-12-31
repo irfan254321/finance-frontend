@@ -64,6 +64,7 @@ export default function ExcelManager({ baseProps }: ExcelManagerProps) {
         uploading={excel.uploading}
         handleExcelSelect={excel.handleExcelSelect}
         handleUploadExcel={excel.handleUploadExcel}
+        handleDownloadTemplate={excel.handleDownloadTemplate}
       />
 
       <ExcelList previewData={excel.previewData} />
