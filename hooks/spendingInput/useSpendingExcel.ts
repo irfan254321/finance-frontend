@@ -291,6 +291,38 @@ export function useSpendingExcel() {
     }
   }
 
+  // ======================================================
+  // 📄 DOWNLOAD TEMPLATE
+  // ======================================================
+  const handleDownloadTemplate = (type: "spending" | "company" | "unit") => {
+    let url = "";
+    let filename = "";
+
+    switch (type) {
+      case "spending":
+        url = "/template/template_spendingobat.xlsx";
+        filename = "template_spendingobat.xlsx";
+        break;
+      case "company":
+        url = "/template/template_name_company.xlsx";
+        filename = "template_name_company.xlsx";
+        break;
+      case "unit":
+        url = "/template/template_name_unit.xlsx";
+        filename = "template_name_unit.xlsx";
+        break;
+    }
+
+    if (!url) return;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return {
     file,
     setFile,
@@ -305,6 +337,7 @@ export function useSpendingExcel() {
     setAlert,
     handleExcelSelect,
     handleUploadExcel,
+    handleDownloadTemplate, // Export function
   }
 
 }
