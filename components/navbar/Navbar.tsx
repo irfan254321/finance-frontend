@@ -1,4 +1,3 @@
-// navbarAdmin.tsx
 "use client";
 
 import Link from "next/link";
@@ -15,48 +14,61 @@ import {
   MenuButton,
 } from "@/components/navbar/NavDesktop";
 import { useNavData, useNavState } from "@/components/navbar/hooks";
-import { financeItems, manageItems, staticNavButtons } from "@/components/navbar/config";
-import { ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from "react";
-import { UrlObject } from "url";
+import {
+  financeItems,
+  manageItems,
+  staticNavButtons,
+} from "@/components/navbar/config";
 
-export default function NavbarAdmin() {
+export default function Navbar() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLogoutLoading, loading } = useAuth();
 
   // Custom hooks handling logic & data
   const { years } = useNavData();
-  const {
-    mobileOpen,
-    openMenu,
-    openSub,
-    toggleMobile,
-    toggleMenu,
-    toggleSub,
-    closeAll,
-  } = useNavState();
+  const { mobileOpen, openMenu, openSub, toggleMenu, toggleSub, closeAll } =
+    useNavState();
 
-  // Siapkan data manage agar bisa menerima fungsi logout di Desktop
+  // Return null if loading or not authenticated (handled by protection usually, but good for safety)
+  if (loading) return null;
+  if (!user) return null;
+
+  const isAdmin = user.role === "admin";
+
+  // Combine Manage Items
+  // Shared: Input, Edit, Year (from config)
+  // User Section: Edit User, Logout (for everyone)
   const finalManageItems = [
     ...manageItems,
     {
       label: "👤 User",
       routes: [
         { name: "🛠️ Edit User", path: "/dashboard/profile" },
-        { name: "🚪 Logout", path: logout }, // Function ref
+        {
+          name: "🚪 Logout",
+          path: logout,
+          isLogout: true,
+        },
       ],
     },
   ];
 
+  // Filter Static Buttons
+  // Register: Admin only
+  // Tutorial: Everyone
+  const filteredStaticButtons = staticNavButtons.filter((btn) => {
+    if (btn.label === "Register") return isAdmin;
+    return true;
+  });
+
   return (
     <nav className="sticky top-0 w-full z-[9999] min-h-28 text-[#EBD77A] font-serif bg-gradient-to-br from-[#1a2732]/97 via-[#2C3E50]/95 to-[#1a2732]/97 backdrop-blur-lg border-b border-[#EBD77A]/15 shadow-[0_2px_25px_rgba(0,0,0,0.4)]">
       <div className="flex justify-between items-center px-6 md:px-16 h-20">
-
         {/* 1. LOGO */}
         <NavLogo />
 
         {/* 2. DESKTOP MENU */}
         <div className="hidden md:flex items-center space-x-36 text-2xl relative mt-9 mr-28">
-
           {/* Dropdown: FINANCE */}
           <DesktopDropdown
             label="Finance"
@@ -96,7 +108,7 @@ export default function NavbarAdmin() {
                 isOpen={openSub === section.label}
                 onToggle={() => toggleSub(section.label)}
               >
-                {section.routes.map((r) =>
+                {section.routes.map((r: any) =>
                   typeof r.path === "string" ? (
                     <MenuLink key={r.name} href={r.path} onClick={closeAll}>
                       {r.name}
@@ -105,9 +117,11 @@ export default function NavbarAdmin() {
                     <MenuButton
                       key={r.name}
                       onClick={() => {
-                        r.path(); // Jalankan logout
+                        r.path(); // Execute generic function (logout)
                         closeAll();
                       }}
+                      disabled={r.isLogout ? isLogoutLoading : false}
+                      isLoading={r.isLogout ? isLogoutLoading : false}
                     >
                       {r.name}
                     </MenuButton>
@@ -117,11 +131,10 @@ export default function NavbarAdmin() {
             ))}
           </DesktopDropdown>
 
-          {/* Static Buttons (Register) */}
-          {staticNavButtons.map((btn) => (
+          {/* Static Buttons (Register, Tutorial) */}
+          {filteredStaticButtons.map((btn) => (
             <Link
-              // Tambahkan 'as string'
-              key={btn.label as string}
+              key={btn.label}
               href={btn.route}
               className="relative group font-semibold text-[#EBD77A] hover:text-[#FFD970]"
             >
@@ -130,10 +143,6 @@ export default function NavbarAdmin() {
             </Link>
           ))}
         </div>
-
-        {/* Toggle Mobile Button (Hidden logic handled by UI caller, usually hamburger icon but wasn't in original snippet explicitly outside mobile panel context, assuming caller exists or logic was implicit in full file. Original code uses `mobileOpen` but no visible button to trigger it inside nav? Assuming it's triggered externally or via `toggleMobile` passed down if icon existed) */}
-        {/* Note: Kode asli tidak menampilkan tombol Hamburger di return, tapi ada fungsi toggleMobile. Saya pertahankan struktur aslinya. Jika ada tombol hamburger yang terlewat di snippet, tambahkan di sini menggunakan onClick={toggleMobile} */}
-
       </div>
 
       {/* 3. MOBILE PANEL */}
